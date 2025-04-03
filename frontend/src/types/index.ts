@@ -3,8 +3,13 @@ export enum Tabs {
   Assistant = "assistant",
 }
 
+export enum MessageRole {
+  User = "user",
+  Assistant = "assistant",
+}
+
 export type Message = {
   id: string;
   content: string;
-  role: "user" | "assistant";
+  role: MessageRole;
 };

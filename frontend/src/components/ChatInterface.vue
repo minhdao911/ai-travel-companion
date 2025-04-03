@@ -9,7 +9,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col gap-8">
+  <div class="flex-1 flex flex-col gap-8 py-8 overflow-y-auto hidden-scrollbar">
     <template v-for="message in props.messages" :key="message.id">
       <!-- Use ChatBubble for user messages -->
       <ChatBubble v-if="message.role === 'user'" :content="message.content" />

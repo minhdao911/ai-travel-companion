@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from ai.travel_details import generate_conversation_response
+from pydantic import BaseModel
+from typing import List, Optional
 
 app = FastAPI(title="AI Travel Companion API")
 
@@ -12,17 +15,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class MessageItem(BaseModel):
+    role: str
+    content: str
+
+class TravelInputRequest(BaseModel):
+    user_input: str
+    conversation_history: Optional[List[MessageItem]] = []
+
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "message": "API is running"}
 
-@app.get("/api/destinations")
-async def get_destinations():
-    # Dummy data for testing
-    return {
-        "destinations": [
-            {"id": 1, "name": "Paris", "country": "France", "description": "The City of Light"},
-            {"id": 2, "name": "Tokyo", "country": "Japan", "description": "A blend of traditional and ultramodern"},
-            {"id": 3, "name": "New York", "country": "USA", "description": "The Big Apple"},
-        ]
-    } 
+@app.post("/api/travel-details")
+async def process_travel_details(request: TravelInputRequest):
+    try:
+        # Generate a response based on the conversation
+        result = generate_conversation_response(
+            request.conversation_history
+        )
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from "vue";
 import Container from "@/components/Container.vue";
 import TextInput from "@/components/TextInput.vue";
 import Card from "@/components/Card.vue";
-import { Tabs, type Message } from "@/types";
+import { MessageRole, Tabs, type Message } from "@/types";
 import Welcome from "@/components/Welcome.vue";
 import ChatInterface from "@/components/ChatInterface.vue";
 
@@ -29,7 +29,7 @@ const handleInputEnter = () => {
   messages.value.push({
     id: "1",
     content: input.value,
-    role: "user",
+    role: MessageRole.User,
   });
   input.value = "";
 };

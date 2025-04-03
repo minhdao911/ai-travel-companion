@@ -70,7 +70,7 @@ const handleEnter = (event: KeyboardEvent) => {
     <textarea
       ref="textareaRef"
       v-model="inputValue"
-      class="w-full border-none resize-none text-white placeholder-gray-500 focus:outline-none max-h-[10rem]"
+      class="w-full border-none resize-none text-white placeholder-gray-500 focus:outline-none max-h-[10rem] hidden-scrollbar"
       :placeholder="props.placeholder"
       rows="3"
       @keydown.enter="handleEnter"

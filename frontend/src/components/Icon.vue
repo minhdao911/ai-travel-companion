@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watchEffect, defineProps, markRaw } from "vue";
+import { ref, watchEffect, markRaw } from "vue";
 
 const props = defineProps<{
   name: string;

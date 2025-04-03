@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import Button from "./Button.vue";
 import Icon from "./Icon.vue";
 
@@ -8,6 +8,22 @@ const props = defineProps<{
 }>();
 
 const isCopied = ref(false);
+
+// Format the message text for display with markdown-like syntax
+const formattedContent = computed(() => {
+  let text = props.content;
+
+  // Convert bullet points
+  text = text.replace(/•/g, "•");
+
+  // Convert bold text
+  text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+  // Convert newlines to <br> tags
+  text = text.replace(/\n/g, "<br>");
+
+  return text;
+});
 
 const handleCopy = () => {
   navigator.clipboard.writeText(props.content);
@@ -24,9 +40,10 @@ const handleCopy = () => {
       <Icon name="bot" />
     </div>
     <div class="flex-1 flex flex-col gap-2">
-      <div class="whitespace-pre-wrap break-words text-white font-sans">
-        {{ props.content }}
-      </div>
+      <div
+        class="whitespace-pre-wrap break-words text-white font-sans"
+        v-html="formattedContent"
+      ></div>
       <div class="flex items-center gap-1">
         <Button variant="icon" tooltip tooltipText="Regenerate">
           <Icon name="refresh" size="text-base" />

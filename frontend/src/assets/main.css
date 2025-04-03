@@ -18,11 +18,11 @@ body {
   background-color: var(--color-dark-500);
 }
 
-textarea {
+.hidden-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-textarea::-webkit-scrollbar {
+.hidden-scrollbar::-webkit-scrollbar {
   display: none;
 }
