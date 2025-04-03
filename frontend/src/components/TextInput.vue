@@ -37,7 +37,7 @@ const inputValue = computed({
 });
 
 // Setup textarea autosize after inputValue is defined
-const { textarea } = useTextareaAutosize({ input: inputValue });
+const { textarea } = useTextareaAutosize({ input: inputValue, styleProp: "minHeight" });
 
 // Make sure our DOM ref and the composable ref are synchronized
 watch(
@@ -66,29 +66,16 @@ const handleEnter = (event: KeyboardEvent) => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 bg-dark-500 border-dark-200 border rounded-[1rem] p-4">
+  <div class="relative flex flex-col gap-6 bg-dark-500 border-dark-200 border rounded-[1rem] p-4">
     <textarea
       ref="textareaRef"
       v-model="inputValue"
       class="w-full border-none resize-none text-white placeholder-gray-500 focus:outline-none max-h-[10rem]"
       :placeholder="props.placeholder"
+      rows="3"
       @keydown.enter="handleEnter"
     />
-    <div class="flex justify-between items-end">
-      <div class="flex gap-4">
-        <Button
-          :variant="props.activeTab === Tabs.FlightsAndHotels ? 'primary' : 'secondary'"
-          @click="handleFlightsAndHotelsClick"
-        >
-          Flights and Hotels
-        </Button>
-        <Button
-          :variant="props.activeTab === Tabs.Assistant ? 'primary' : 'secondary'"
-          @click="handleAssistantClick"
-        >
-          Assistant
-        </Button>
-      </div>
+    <div class="absolute bottom-4 right-4 flex justify-between items-end">
       <p class="text-gray-500 text-sm">Enter to submit ⏎</p>
     </div>
   </div>

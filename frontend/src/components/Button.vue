@@ -33,7 +33,7 @@ const getVariantClasses = () => {
 };
 const buttonClasses = computed(() => {
   const defaultClasses =
-    " relative px-4 py-2 border text-sm font-semibold rounded-full cursor-pointer";
+    " relative px-4 py-2 border text-sm font-semibold rounded-lg cursor-pointer";
   return twMerge(defaultClasses, getVariantClasses(), props.class);
 });
 </script>

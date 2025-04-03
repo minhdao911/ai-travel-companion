@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import Container from "@/components/Container.vue";
 import TextInput from "@/components/TextInput.vue";
 import Card from "@/components/Card.vue";
@@ -33,39 +33,53 @@ const handleInputEnter = () => {
   });
   input.value = "";
 };
+
+// Function to clear messages when the clear-chat-state event is triggered
+const clearChatState = () => {
+  messages.value = [];
+  input.value = "";
+};
+
+// Set up event listener when component is mounted
+onMounted(() => {
+  window.addEventListener("clear-chat-state", clearChatState);
+});
+
+// Clean up event listener when component is unmounted
+onUnmounted(() => {
+  window.removeEventListener("clear-chat-state", clearChatState);
+});
 </script>
 
 <template>
-  <main class="flex flex-col h-screen w-screen">
-    <Container>
-      <div class="flex flex-col justify-between w-full h-full">
-        <Welcome v-if="messages.length === 0">
-          <div class="flex flex-col gap-2.5 w-xl">
-            <p class="text-gray-500">
-              Learn about local restaurants, attractions and travel tips. I can search the web for
-              up-to-date information about your destinations.
-            </p>
-            <p class="text-gray-500">Use the prompts below or use your own to get started.</p>
-            <div class="grid grid-cols-2 gap-2.5">
-              <Card
-                v-for="prompt in defaultPrompts"
-                :key="prompt"
-                :onClick="() => handleCardClick(prompt)"
-              >
-                <p class="text-white text-sm">{{ prompt }}</p>
-              </Card>
-            </div>
+  <Container>
+    <div class="flex flex-col justify-between w-full h-full">
+      <Welcome v-if="messages.length === 0">
+        <div class="flex flex-col gap-2.5 w-xl">
+          <p class="text-gray-500">
+            Learn about local restaurants, attractions and travel tips. I can search the web for
+            up-to-date information about your destinations.
+          </p>
+          <p class="text-gray-500">Use the prompts below or use your own to get started.</p>
+          <div class="grid grid-cols-2 gap-2.5">
+            <Card
+              v-for="prompt in defaultPrompts"
+              :key="prompt"
+              :onClick="() => handleCardClick(prompt)"
+            >
+              <p class="text-white text-sm">{{ prompt }}</p>
+            </Card>
           </div>
-        </Welcome>
-        <ChatInterface v-else :messages="messages" />
-        <TextInput
-          v-model="input"
-          placeholder="Write a message..."
-          :activeTab="Tabs.Assistant"
-          :onEnter="handleInputEnter"
-          ref="textInputRef"
-        />
-      </div>
-    </Container>
-  </main>
+        </div>
+      </Welcome>
+      <ChatInterface v-else :messages="messages" />
+      <TextInput
+        v-model="input"
+        placeholder="Write a message..."
+        :activeTab="Tabs.Assistant"
+        :onEnter="handleInputEnter"
+        ref="textInputRef"
+      />
+    </div>
+  </Container>
 </template>

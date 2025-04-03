@@ -1,10 +1,21 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import Button from "./Button.vue";
 import Icon from "./Icon.vue";
 
 const props = defineProps<{
   content: string;
 }>();
+
+const isCopied = ref(false);
+
+const handleCopy = () => {
+  navigator.clipboard.writeText(props.content);
+  isCopied.value = true;
+  setTimeout(() => {
+    isCopied.value = false;
+  }, 1000);
+};
 </script>
 
 <template>
@@ -20,7 +31,12 @@ const props = defineProps<{
         <Button variant="icon" tooltip tooltipText="Regenerate">
           <Icon name="refresh" size="text-base" />
         </Button>
-        <Button variant="icon" tooltip tooltipText="Copy">
+        <Button
+          variant="icon"
+          tooltip
+          :tooltipText="isCopied ? 'Copied' : 'Copy'"
+          @click="handleCopy"
+        >
           <Icon name="copy" size="text-base" />
         </Button>
       </div>

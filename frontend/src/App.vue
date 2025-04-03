@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from "vue-router";
 import Container from "./components/Container.vue";
+import NavBar from "./components/NavBar.vue";
 </script>
 
 <template>
@@ -21,5 +22,9 @@ import Container from "./components/Container.vue";
       <RouterView />
     </main>
   </div> -->
-  <RouterView />
+  <!-- <RouterView /> -->
+  <div class="flex p-4 h-screen w-screen gap-4">
+    <NavBar />
+    <RouterView />
+  </div>
 </template>
