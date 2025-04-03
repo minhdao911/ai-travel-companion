@@ -10,12 +10,12 @@ const router = createRouter({
       component: HomeView,
     },
     {
-      path: "/destinations",
-      name: "destinations",
+      path: "/assistant",
+      name: "assistant",
       // route level code-splitting
       // this generates a separate chunk for this route
       // which is lazy-loaded when the route is visited.
-      component: () => import("../views/DestinationsView.vue"),
+      component: () => import("../views/AssistantView.vue"),
     },
   ],
 });

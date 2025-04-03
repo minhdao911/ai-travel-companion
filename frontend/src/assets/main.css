@@ -1,1 +1,28 @@
 @import "tailwindcss";
+
+@theme {
+  --color-dark-200: #34363a;
+  --color-dark-400: #2d2e37;
+  --color-dark-500: #25252b;
+  --color-dark-800: #1e2023;
+  --color-blue: #6a88e4;
+  --color-yellow-dark: #a26921;
+  --color-yellow-light: #c9842e;
+}
+
+:root {
+  font-family: "Inter", sans-serif;
+}
+
+body {
+  background-color: var(--color-dark-500);
+}
+
+textarea {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+textarea::-webkit-scrollbar {
+  display: none;
+}
