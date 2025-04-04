@@ -42,5 +42,5 @@ travel_preferences_schema = {
             "items": {"type": "string"}
         }
     },
-    "required": ["origin_airport_code", "destination_airport_code", "destination_city_name", "num_guests", "start_date", "end_date", "budget"]
+    "required": ["origin_airport_code", "destination_airport_code", "destination_city_name", "num_guests", "start_date", "end_date"]
 }

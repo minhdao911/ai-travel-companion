@@ -4,14 +4,28 @@ from utils.datetime import format_date
 
 user_input_model = model.with_structured_output(travel_preferences_schema)
 
-def get_travel_details(user_input: str) -> dict:
+def get_travel_details(input: str) -> dict:
     prompt = f"""
         Read the following information from the user and extract the data into the structured output fields.
-        {user_input}
-        Don't make up any information, only use the information provided by the user.
-        If the user don't provide the number of guests, don't assume it's 1.
+        
+        The input is a conversation between a user and an AI assistant. When extracting information, 
+        consider the context of questions and answers. For example, if the assistant asks
+        "How many people are traveling?" and the user responds "1", understand that "1" refers to the 
+        number of guests.
+
+        IMPORTANT: 
+        - DO NOT make any assumptions about travel details that the user has not explicitly provided
+        - Only fill in fields where the user has clearly stated the information
+        - Leave fields EMPTY if the user hasn't provided the specific information
+        - If the user mentions origin or destination city, use the nearest airport code
+        - If the user don't provide the number of guests, don't assume it's 1
+        
+        Conversation:
+        {input}
+        
         When providing dates give the format like this: May 2, 2025
-        When providing airport codes give 3 uppercase letters
+        When providing airport codes give 3 uppercase letters.
+        Make sure the airport code is valid.
     """
     try:
         return user_input_model.invoke(prompt)
@@ -44,9 +58,6 @@ def check_missing_information(travel_details: dict) -> dict:
         
     if not travel_details.get('num_guests'):
         missing_fields.append("num_guests")
-        
-    if not travel_details.get('budget'):
-        missing_fields.append("budget")
     
     if missing_fields:
         return {
@@ -64,24 +75,14 @@ def summarize_travel_details(travel_details: dict) -> dict:
     """
     Create a summary of the complete travel details.
     """
-    # Check if we have complete information
-    check_result = check_missing_information(travel_details)
-    if not check_result["complete"]:
-        return check_result
-    
-    # Create summary for complete information
     return {
-        "complete": True,
-        "summary": {
-            "From": travel_details['origin_airport_code'],
-            "To": travel_details['destination_airport_code'],
-            "Destination": travel_details['destination_city_name'],
-            "Guests": travel_details['num_guests'],
-            "Departure": format_date(travel_details['start_date']),
-            "Return": format_date(travel_details['end_date']),
-            "Budget": f"${travel_details['budget']}",
-        },
-        "travel_details": travel_details
+        "From": travel_details['origin_airport_code'],
+        "To": travel_details['destination_airport_code'],
+        "Destination": travel_details['destination_city_name'],
+        "Guests": travel_details['num_guests'],
+        "Departure": format_date(travel_details['start_date']),
+        "Return": format_date(travel_details['end_date']),
+        "Budget": f"${travel_details['budget']}" if travel_details['budget'] else "Not specified",
     }
 
 def generate_conversation_response(conversation_history: list = []) -> dict:
@@ -90,9 +91,14 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
     This handles the complete chat flow including missing information and summaries.
     """
     try:
-        travel_description = '. '.join([x.content for x in conversation_history if x.role == 'user'])
-        # Extract travel details from user input
-        travel_details = get_travel_details(travel_description)
+        # Format the conversation for the model to better understand context
+        formatted_conversation = ""
+        for message in conversation_history:
+            role = "Assistant" if message.role == "assistant" else "User"
+            formatted_conversation += f"{role}: {message.content}\n"
+            
+        # Extract travel details from formatted conversation
+        travel_details = get_travel_details(formatted_conversation)
         
         # Check if we have all the required information
         check_result = check_missing_information(travel_details)
@@ -106,8 +112,7 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
                 "destination_city_name": "What city are you planning to visit?",
                 "start_date": "When are you planning to depart? (e.g., May 2, 2025)",
                 "end_date": "And when will you be returning?",
-                "num_guests": "How many people will be traveling with you?",
-                "budget": "What's your approximate budget for this trip (in USD)?"
+                "num_guests": "How many people in total will be traveling?",
             }
             
             # Create a conversational response for missing information
@@ -129,31 +134,20 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
                 "message": message,
                 "missing_fields": missing_fields
             }
-        else:
-            # All required information is provided - create a summary
-            summary = {
-                "From": travel_details['origin_airport_code'],
-                "To": travel_details['destination_airport_code'],
-                "Destination": travel_details['destination_city_name'],
-                "Guests": travel_details['num_guests'],
-                "Departure": format_date(travel_details['start_date']),
-                "Return": format_date(travel_details['end_date']),
-                "Budget": f"${travel_details['budget']}",
-            }
-            
+        else:            
             # Create a conversational summary response
             message = f"Perfect! I've got all the details for your trip to {travel_details['destination_city_name']}. Here's a summary:\n\n"
             message += f"• Traveling from {travel_details['origin_airport_code']} to {travel_details['destination_airport_code']}\n"
             message += f"• {travel_details['num_guests']} traveler{'s' if travel_details['num_guests'] > 1 else ''}\n"
             message += f"• Departing on {format_date(travel_details['start_date'])}\n"
             message += f"• Returning on {format_date(travel_details['end_date'])}\n"
-            message += f"• Budget: ${travel_details['budget']}\n\n"
+            message += f"• Budget: {f"${travel_details['budget']}" if travel_details['budget'] else "Not specified"}\n\n"
             message += "I can now help you find the best flights and accommodations for your trip."
             
             return {
                 "complete": True,
                 "message": message,
-                "summary": summary,
+                "summary": summarize_travel_details(travel_details),
                 "travel_details": travel_details
             }
     
@@ -162,6 +156,6 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
         print("Error while generating conversation response: ", e)
         return {
             "complete": False,
-            "message": f"I'm sorry, I couldn't process your travel request properly. Could you please provide your complete travel details including departure city, destination, dates, number of travelers, and budget?",
+            "message": f"I'm sorry, I couldn't process your travel request properly. I need clear information about your departure city, destination, dates, and number of travelers. Please provide only the information you're sure about, and I'll ask for any missing details.",
             "error": str(e)
         }
