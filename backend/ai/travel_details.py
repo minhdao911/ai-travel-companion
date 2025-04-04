@@ -103,7 +103,7 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
         else:            
             # Create a conversational summary response
             message = f"Perfect! I've got all the details for your trip to {travel_details['destination_city_name']}. Here's a summary:\n\n"
-            message += f"• Traveling from {travel_details['origin_airport_code']} to {travel_details['destination_airport_code']}\n"
+            message += f"• Traveling from {travel_details['destination_city_name']} to {travel_details['origin_city_name']}\n"
             message += f"• {travel_details['num_guests']} traveler{'s' if travel_details['num_guests'] > 1 else ''}\n"
             message += f"• Departing on {format_date(travel_details['start_date'])}\n"
             message += f"• Returning on {format_date(travel_details['end_date'])}\n"

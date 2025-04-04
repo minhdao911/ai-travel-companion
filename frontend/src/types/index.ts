@@ -6,6 +6,7 @@ export enum Tabs {
 export enum MessageRole {
   User = "user",
   Assistant = "assistant",
+  Task = "task",
 }
 
 export enum TaskStatus {
@@ -15,10 +16,18 @@ export enum TaskStatus {
   Failed = "failed",
 }
 
+export enum TaskType {
+  FlightSearch = "flightSearch",
+  HotelSearch = "hotelSearch",
+  FlightPick = "flightPick",
+  HotelPick = "hotelPick",
+}
+
 export type Message = {
   id: string;
-  content: string;
   role: MessageRole;
+  content: string;
+  completed?: boolean;
 };
 
 export type TravelDetails = {

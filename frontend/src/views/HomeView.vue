@@ -1,28 +1,44 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { onMounted, onUnmounted, ref, computed } from "vue";
 import Container from "@/components/Container.vue";
 import TextInput from "@/components/TextInput.vue";
-import { MessageRole, Tabs, type Message, type TravelDetails } from "@/types";
+import { MessageRole, Tabs } from "@/types";
 import Welcome from "@/components/Welcome.vue";
 import ChatInterface from "@/components/ChatInterface.vue";
-import FlightSearch from "@/components/FlightSearch.vue";
-import axios from "axios";
+import { getTravelDetails } from "@/services/api";
+import { useChat } from "@/composables/useChat";
+import { useTasks } from "@/composables/useTasks";
+import { useTravelSearch } from "@/composables/useTravelSearch";
+import { generateId } from "@/services/id";
 
-const API_URL = import.meta.env.VITE_API_URL;
+// Initialize composables
+const {
+  messages,
+  travelDetails,
+  isLoading,
+  addMessage,
+  updateMessage,
+  setTravelDetails,
+  createUserMessage,
+  createAssistantMessage,
+  clearChatState,
+} = useChat();
 
-const messages = ref<Message[]>([]);
+// Initialize tasks system
+const { startPolling, setTaskProcessing, addTaskMessage } = useTasks(addMessage, updateMessage);
+
+// Initialize travel search with computed reference
+const travelSearch = useTravelSearch(
+  computed(() => travelDetails.value),
+  addMessage,
+  setTaskProcessing,
+  addTaskMessage
+);
+
 const input = ref("");
-const isLoading = ref(false);
-const travelDetails = ref<TravelDetails | null>(null);
-const showFlightSearch = ref(false);
 
-// Generate unique message IDs
-const generateMessageId = () => {
-  return Date.now().toString() + Math.floor(Math.random() * 1000).toString();
-};
-
-// Send travel details to backend API
-const sendTravelDetailsRequest = async (userInput: string) => {
+// Handle extracting travel details from user input
+const processUserInput = async (userInput: string) => {
   try {
     isLoading.value = true;
 
@@ -33,36 +49,31 @@ const sendTravelDetailsRequest = async (userInput: string) => {
     }));
 
     // Send request to backend
-    const response = await axios.post(`${API_URL}/api/travel-details`, {
-      user_input: userInput,
-      conversation_history: conversationHistory,
-    });
-
-    const responseData = response.data;
+    const responseData = await getTravelDetails(userInput, conversationHistory);
 
     // Store travel details if available
     if (responseData.complete && responseData.travel_details) {
-      travelDetails.value = responseData.travel_details;
-      showFlightSearch.value = true;
+      setTravelDetails(responseData.travel_details);
+
+      addMessage(createAssistantMessage(responseData.message));
+
+      // Start flight search
+      await travelSearch.startFlightSearch();
+      startPolling();
+
+      return;
     }
 
     // Add the assistant's message with the formatted response
-    messages.value.push({
-      id: generateMessageId(),
-      content: responseData.message,
-      role: MessageRole.Assistant,
-    });
-
-    return responseData;
+    addMessage(createAssistantMessage(responseData.message));
+    isLoading.value = false;
   } catch (error) {
-    console.error("Error sending travel details:", error);
-    messages.value.push({
-      id: generateMessageId(),
-      content: "Sorry, I encountered an error processing your travel plans. Please try again.",
-      role: MessageRole.Assistant,
-    });
-    return null;
-  } finally {
+    console.error("Error processing travel details:", error);
+    addMessage(
+      createAssistantMessage(
+        "Sorry, I encountered an error processing your travel plans. Please try again."
+      )
+    );
     isLoading.value = false;
   }
 };
@@ -70,17 +81,12 @@ const sendTravelDetailsRequest = async (userInput: string) => {
 const handleInputEnter = async () => {
   if (!input.value.trim() || isLoading.value) return;
 
-  const userMessage: Message = {
-    id: generateMessageId(),
-    content: input.value,
-    role: MessageRole.User,
-  };
-
-  messages.value.push(userMessage);
+  // Add user message to chat
+  addMessage(createUserMessage(input.value));
 
   // Add loading message
-  const loadingMessageId = generateMessageId();
-  messages.value.push({
+  const loadingMessageId = generateId();
+  addMessage({
     id: loadingMessageId,
     content: "Thinking...",
     role: MessageRole.Assistant,
@@ -89,25 +95,11 @@ const handleInputEnter = async () => {
   const userInput = input.value;
   input.value = "";
 
-  // Send request to backend
-  await sendTravelDetailsRequest(userInput);
+  // Process the user input
+  await processUserInput(userInput);
 
   // Remove loading message
   messages.value = messages.value.filter((msg) => msg.id !== loadingMessageId);
-};
-
-// Handle flight URL when it's ready
-const handleFlightUrlReady = (url: string) => {
-  // You can add additional logic here if needed
-  console.log("Flight URL ready:", url);
-};
-
-// Function to clear messages when the clear-chat-state event is triggered
-const clearChatState = () => {
-  messages.value = [];
-  input.value = "";
-  travelDetails.value = null;
-  showFlightSearch.value = false;
 };
 
 // Set up event listener when component is mounted
@@ -132,13 +124,6 @@ onUnmounted(() => {
       </Welcome>
       <div v-else class="flex flex-col w-full h-full overflow-y-auto">
         <ChatInterface :messages="messages" />
-
-        <!-- Flight Search Component (only shown when travel details are available) -->
-        <FlightSearch
-          v-if="showFlightSearch && travelDetails"
-          :travelDetails="travelDetails"
-          @flightUrlReady="handleFlightUrlReady"
-        />
       </div>
       <TextInput
         placeholder="Where would you like to go?"

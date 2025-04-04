@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ChatBubble from "@/components/ChatBubble.vue";
 import AIReponse from "@/components/AIReponse.vue";
+import TaskResponse from "@/components/TaskResponse.vue";
 import type { Message } from "@/types";
 
 const props = defineProps<{
@@ -14,8 +15,15 @@ const props = defineProps<{
       <!-- Use ChatBubble for user messages -->
       <ChatBubble v-if="message.role === 'user'" :content="message.content" />
 
-      <!-- Use normal div for assistant messages -->
-      <AIReponse v-else class="w-full text-white" :content="message.content" />
+      <!-- Use AIReponse for assistant messages -->
+      <AIReponse v-if="message.role === 'assistant'" :content="message.content" />
+
+      <!-- Use TaskResponse for task messages -->
+      <TaskResponse
+        v-if="message.role === 'task'"
+        :content="message.content"
+        :isLoading="!message.completed"
+      />
     </template>
   </div>
 </template>
