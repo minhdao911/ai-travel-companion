@@ -5,6 +5,7 @@ travel_preferences_schema = {
     "properties": {
         "origin_airport_code": {"type": "string", "description": "The 3-letter airport code for departure"},
         "destination_airport_code": {"type": "string", "description": "The 3-letter airport code for arrival"},
+        "origin_city_name": {"type": "string", "description": "The name of the departure city"},
         "destination_city_name": {"type": "string", "description": "The name of the destination city"},
         "num_guests": {"type": "integer", "description": "Number of travelers"},
         "start_date": {"type": "string", "description": "Departure date in format like May 2, 2025"},
@@ -42,5 +43,5 @@ travel_preferences_schema = {
             "items": {"type": "string"}
         }
     },
-    "required": ["origin_airport_code", "destination_airport_code", "destination_city_name", "num_guests", "start_date", "end_date"]
+    "required": ["origin_city_name", "destination_city_name", "num_guests", "start_date", "end_date"]
 }

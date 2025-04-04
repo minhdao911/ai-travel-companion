@@ -2,9 +2,10 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import Container from "@/components/Container.vue";
 import TextInput from "@/components/TextInput.vue";
-import { MessageRole, Tabs, type Message } from "@/types";
+import { MessageRole, Tabs, type Message, type TravelDetails } from "@/types";
 import Welcome from "@/components/Welcome.vue";
 import ChatInterface from "@/components/ChatInterface.vue";
+import FlightSearch from "@/components/FlightSearch.vue";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -12,7 +13,8 @@ const API_URL = import.meta.env.VITE_API_URL;
 const messages = ref<Message[]>([]);
 const input = ref("");
 const isLoading = ref(false);
-const travelDetails = ref(null);
+const travelDetails = ref<TravelDetails | null>(null);
+const showFlightSearch = ref(false);
 
 // Generate unique message IDs
 const generateMessageId = () => {
@@ -41,6 +43,7 @@ const sendTravelDetailsRequest = async (userInput: string) => {
     // Store travel details if available
     if (responseData.complete && responseData.travel_details) {
       travelDetails.value = responseData.travel_details;
+      showFlightSearch.value = true;
     }
 
     // Add the assistant's message with the formatted response
@@ -93,11 +96,18 @@ const handleInputEnter = async () => {
   messages.value = messages.value.filter((msg) => msg.id !== loadingMessageId);
 };
 
+// Handle flight URL when it's ready
+const handleFlightUrlReady = (url: string) => {
+  // You can add additional logic here if needed
+  console.log("Flight URL ready:", url);
+};
+
 // Function to clear messages when the clear-chat-state event is triggered
 const clearChatState = () => {
   messages.value = [];
   input.value = "";
   travelDetails.value = null;
+  showFlightSearch.value = false;
 };
 
 // Set up event listener when component is mounted
@@ -120,7 +130,16 @@ onUnmounted(() => {
           you flights and hotel suggestions.
         </p>
       </Welcome>
-      <ChatInterface v-else :messages="messages" />
+      <div v-else class="flex flex-col w-full h-full overflow-y-auto">
+        <ChatInterface :messages="messages" />
+
+        <!-- Flight Search Component (only shown when travel details are available) -->
+        <FlightSearch
+          v-if="showFlightSearch && travelDetails"
+          :travelDetails="travelDetails"
+          @flightUrlReady="handleFlightUrlReady"
+        />
+      </div>
       <TextInput
         placeholder="Where would you like to go?"
         :activeTab="Tabs.FlightsAndHotels"

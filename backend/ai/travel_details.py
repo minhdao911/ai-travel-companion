@@ -1,32 +1,12 @@
 from ai.models import model
 from ai.travel_schemas import travel_preferences_schema
 from utils.datetime import format_date
+from ai.prompts import travel_details_prompt
 
 user_input_model = model.with_structured_output(travel_preferences_schema)
 
 def get_travel_details(input: str) -> dict:
-    prompt = f"""
-        Read the following information from the user and extract the data into the structured output fields.
-        
-        The input is a conversation between a user and an AI assistant. When extracting information, 
-        consider the context of questions and answers. For example, if the assistant asks
-        "How many people are traveling?" and the user responds "1", understand that "1" refers to the 
-        number of guests.
-
-        IMPORTANT: 
-        - DO NOT make any assumptions about travel details that the user has not explicitly provided
-        - Only fill in fields where the user has clearly stated the information
-        - Leave fields EMPTY if the user hasn't provided the specific information
-        - If the user mentions origin or destination city, use the nearest airport code
-        - If the user don't provide the number of guests, don't assume it's 1
-        
-        Conversation:
-        {input}
-        
-        When providing dates give the format like this: May 2, 2025
-        When providing airport codes give 3 uppercase letters.
-        Make sure the airport code is valid.
-    """
+    prompt = travel_details_prompt(input)
     try:
         return user_input_model.invoke(prompt)
     except Exception as e:
@@ -69,20 +49,6 @@ def check_missing_information(travel_details: dict) -> dict:
     return {
         "complete": True,
         "travel_details": travel_details
-    }
-
-def summarize_travel_details(travel_details: dict) -> dict:
-    """
-    Create a summary of the complete travel details.
-    """
-    return {
-        "From": travel_details['origin_airport_code'],
-        "To": travel_details['destination_airport_code'],
-        "Destination": travel_details['destination_city_name'],
-        "Guests": travel_details['num_guests'],
-        "Departure": format_date(travel_details['start_date']),
-        "Return": format_date(travel_details['end_date']),
-        "Budget": f"${travel_details['budget']}" if travel_details['budget'] else "Not specified",
     }
 
 def generate_conversation_response(conversation_history: list = []) -> dict:
@@ -147,7 +113,6 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
             return {
                 "complete": True,
                 "message": message,
-                "summary": summarize_travel_details(travel_details),
                 "travel_details": travel_details
             }
     
