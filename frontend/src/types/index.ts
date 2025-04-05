@@ -7,6 +7,7 @@ export enum MessageRole {
   User = "user",
   Assistant = "assistant",
   Task = "task",
+  Info = "info",
 }
 
 export enum TaskStatus {
@@ -22,21 +23,29 @@ export enum TaskType {
   HotelSearch = "Hotel Search",
 }
 
+export type Task = {
+  id?: string;
+  type: TaskType;
+  status: TaskStatus;
+  messageId: string;
+};
+
 export type Message = {
   id: string;
   role: MessageRole;
   content: string;
   loading?: boolean;
+  taskType?: TaskType;
 };
 
 export type TravelPreferences = {
   origin_airport_code?: string;
   destination_airport_code?: string;
-  origin_city_name: string;
-  destination_city_name: string;
-  num_guests: number;
-  start_date: string;
-  end_date: string;
+  origin_city_name?: string;
+  destination_city_name?: string;
+  num_guests?: number;
+  start_date?: string;
+  end_date?: string;
   budget?: number;
   accommodation?: {
     type?: string;
@@ -51,31 +60,13 @@ export type TravelPreferences = {
   food_preferences?: string[];
 };
 
-export type Price = {
-  amount: number;
-  currency: string;
-};
-
-export type FlightDetails = {
-  arrival_date: string;
-  arrival_time: string;
-  departure_date: string;
-  departure_time: string;
-  origin_city_name: string;
-  destination_city_name: string;
-  origin_airport_code: string;
-  destination_airport_code: string;
-  price: Price;
-  num_stops: number;
-  duration: string;
-  airlines_and_flight_numbers: string;
-  stop_locations: string;
-};
-
-export type TravelDetails = {
-  flight: {
-    outbound_flight: FlightDetails;
-    return_flight: FlightDetails;
-    total_price: Price;
-  };
+export type TravelContext = {
+  start_date?: string;
+  end_date?: string;
+  origin_city_name?: string;
+  destination_city_name?: string;
+  num_guests?: number;
+  budget?: number;
+  flights?: string;
+  preferences?: string;
 };

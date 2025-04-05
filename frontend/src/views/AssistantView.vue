@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref } from "vue";
 import Container from "@/components/Container.vue";
 import TextInput from "@/components/TextInput.vue";
 import Card from "@/components/Card.vue";
@@ -34,21 +34,9 @@ const handleInputEnter = () => {
   input.value = "";
 };
 
-// Function to clear messages when the clear-chat-state event is triggered
-const clearChatState = () => {
-  messages.value = [];
-  input.value = "";
+const handleRegenerate = (messageId: string) => {
+  console.log("Regenerating", messageId);
 };
-
-// Set up event listener when component is mounted
-onMounted(() => {
-  window.addEventListener("clear-chat-state", clearChatState);
-});
-
-// Clean up event listener when component is unmounted
-onUnmounted(() => {
-  window.removeEventListener("clear-chat-state", clearChatState);
-});
 </script>
 
 <template>
@@ -72,7 +60,12 @@ onUnmounted(() => {
           </div>
         </div>
       </Welcome>
-      <ChatInterface v-else :messages="messages" />
+      <ChatInterface
+        v-else
+        :messages="messages"
+        :isLoading="false"
+        :onRegenerate="handleRegenerate"
+      />
       <TextInput
         v-model="input"
         placeholder="Write a message..."

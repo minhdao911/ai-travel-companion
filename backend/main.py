@@ -30,6 +30,9 @@ class TravelInputRequest(BaseModel):
     user_input: str
     conversation_history: Optional[List[MessageItem]] = []
 
+class TravelSummaryRequest(BaseModel):
+    flight_results: str
+    
 class FlightSearchRequest(BaseModel):
     origin_city_name: str
     destination_city_name: str
@@ -55,9 +58,7 @@ def process_flights_search(task_id, origin, destination, start_date, end_date, n
         url = run_async(get_flight_url(origin, destination, start_date, end_date, num_guests))
         if not url:
             raise Exception("Failed to get flight search url")
-        
-        task_manager.update_task_status(task_id, TaskStatus.PROCESSING, data={"url": url})
-        
+                
         # Scrape flights
         flight_results = run_async(scrape_flights(url))
         print("--- Flight results ---")
@@ -65,13 +66,8 @@ def process_flights_search(task_id, origin, destination, start_date, end_date, n
         if not flight_results:
             raise Exception("Failed to scrape flights")
         
-        # Get flight summary
-        summary = get_travel_summary(flight_results)
-        print("--- Flight summary ---")
-        print(summary)
-        
         # Update task status to completed
-        task_manager.update_task_status(task_id, TaskStatus.COMPLETED, data=summary)
+        task_manager.update_task_status(task_id, TaskStatus.COMPLETED, data=flight_results)
     except Exception as e:
         print(f"Error processing flights search: {str(e)}")
         task_manager.update_task_status(task_id, TaskStatus.FAILED, error=str(e))
@@ -87,7 +83,17 @@ async def process_travel_details(request: TravelInputRequest):
         result = generate_conversation_response(
             request.conversation_history
         )
-        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/api/travel-summary")
+async def process_travel_summary(request: TravelSummaryRequest):
+    try:
+        # Generate a summary of the travel
+        result = get_travel_summary(
+            request.flight_results
+        )   
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

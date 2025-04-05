@@ -15,6 +15,14 @@ export const getTravelDetails = async (
   return response.data;
 };
 
+// Function to get travel summary
+export const getTravelSummary = async (flightResults: string) => {
+  const response = await axios.post(`${API_URL}/api/travel-summary`, {
+    flight_results: flightResults,
+  });
+  return response.data;
+};
+
 // Function to search for flights
 export const searchFlights = async (travelDetails: TravelPreferences) => {
   const response = await axios.post(`${API_URL}/api/search-flights`, {

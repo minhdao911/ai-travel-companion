@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import ChatBubble from "@/components/ChatBubble.vue";
 import AIReponse from "@/components/AIReponse.vue";
-import TaskResponse from "@/components/TaskResponse.vue";
 import type { Message } from "@/types";
 
 const props = defineProps<{
   messages: Message[];
+  isLoading: boolean;
+  onRegenerate: (messageId: string) => void;
 }>();
+
+const handleRegenerate = (messageId: string) => {
+  props.onRegenerate(messageId);
+};
 </script>
 
 <template>
@@ -15,14 +20,12 @@ const props = defineProps<{
       <!-- Use ChatBubble for user messages -->
       <ChatBubble v-if="message.role === 'user'" :content="message.content" />
 
-      <!-- Use AIReponse for assistant messages -->
-      <AIReponse v-if="message.role === 'assistant'" :content="message.content" />
-
-      <!-- Use TaskResponse for task messages -->
-      <TaskResponse
-        v-if="message.role === 'task'"
-        :content="message.content"
-        :isLoading="message.loading"
+      <!-- Use AIReponse for ai messages -->
+      <AIReponse
+        v-else
+        :message="message"
+        :isChatLoading="props.isLoading"
+        @regenerate="handleRegenerate"
       />
     </template>
   </div>

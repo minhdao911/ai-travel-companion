@@ -1,49 +1,39 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed } from "vue";
+import { ref } from "vue";
 import Container from "@/components/Container.vue";
 import TextInput from "@/components/TextInput.vue";
-import { MessageRole, Tabs } from "@/types";
+import { MessageRole, Tabs, TaskType } from "@/types";
 import Welcome from "@/components/Welcome.vue";
 import ChatInterface from "@/components/ChatInterface.vue";
 import { getTravelDetails } from "@/services/api";
-import { useChat } from "@/composables/useChat";
 import { useTasks } from "@/composables/useTasks";
 import { useTravelSearch } from "@/composables/useTravelSearch";
 import { generateId } from "@/utils/id";
+import { useTravelStore } from "@/stores/travel";
+import { useAgentChatStore } from "@/stores/chat";
 
-// Initialize composables
-const {
-  messages,
-  travelPreferences,
-  isLoading,
-  addMessage,
-  updateMessage,
-  setTravelPreferences,
-  createUserMessage,
-  createAssistantMessage,
-  clearChatState,
-} = useChat();
-
-// Initialize tasks system
-const { startPolling, setTaskProcessing, addTaskMessage } = useTasks(addMessage, updateMessage);
-
-// Initialize travel search with computed reference
-const travelSearch = useTravelSearch(
-  computed(() => travelPreferences.value),
-  addMessage,
-  setTaskProcessing,
-  addTaskMessage
-);
+const travelStore = useTravelStore();
+const agentChatStore = useAgentChatStore();
 
 const input = ref("");
+
+// Initialize tasks system
+const { startPolling, setTaskProcessing, initializeTask } = useTasks(
+  agentChatStore.setLoading,
+  agentChatStore.addMessage,
+  agentChatStore.updateMessage
+);
+
+// Initialize travel search with computed reference
+const travelSearch = useTravelSearch(agentChatStore.addMessage, setTaskProcessing, initializeTask);
 
 // Handle extracting travel details from user input
 const processUserInput = async (userInput: string) => {
   try {
-    isLoading.value = true;
+    agentChatStore.setLoading(true);
 
     // Create conversation history from existing messages
-    const conversationHistory = messages.value.map((msg) => ({
+    const conversationHistory = agentChatStore.messages.map((msg) => ({
       role: msg.role,
       content: msg.content,
     }));
@@ -53,43 +43,61 @@ const processUserInput = async (userInput: string) => {
 
     // Store travel details if available
     if (responseData.complete && responseData.travel_preferences) {
-      setTravelPreferences(responseData.travel_preferences);
+      travelStore.setPreferences(responseData.travel_preferences);
+      travelStore.setContext({
+        start_date: responseData.travel_preferences.start_date,
+        end_date: responseData.travel_preferences.end_date,
+        origin_city_name: responseData.travel_preferences.origin_city_name,
+        destination_city_name: responseData.travel_preferences.destination_city_name,
+        num_guests: responseData.travel_preferences.num_guests,
+        budget: responseData.travel_preferences.budget,
+      });
 
-      addMessage(createAssistantMessage(responseData.message));
+      agentChatStore.addMessage({
+        role: MessageRole.Assistant,
+        content: responseData.message,
+        loading: false,
+      });
 
       // Start flight search
       await travelSearch.startFlightSearch();
-      startPolling();
+      startPolling(TaskType.FlightSearch);
 
       return;
     }
 
     // Add the assistant's message with the formatted response
-    addMessage(createAssistantMessage(responseData.message));
-    isLoading.value = false;
+    agentChatStore.addMessage({
+      role: MessageRole.Assistant,
+      content: responseData.message,
+    });
+    agentChatStore.setLoading(false);
   } catch (error) {
     console.error("Error processing travel details:", error);
-    addMessage(
-      createAssistantMessage(
-        "Sorry, I encountered an error processing your travel plans. Please try again."
-      )
-    );
-    isLoading.value = false;
+    agentChatStore.addMessage({
+      role: MessageRole.Assistant,
+      content: "Sorry, I encountered an error processing your travel plans. Please try again.",
+    });
+    agentChatStore.setLoading(false);
   }
 };
 
 const handleInputEnter = async () => {
-  if (!input.value.trim() || isLoading.value) return;
+  if (!input.value.trim() || agentChatStore.loading) return;
 
   // Add user message to chat
-  addMessage(createUserMessage(input.value));
+  agentChatStore.addMessage({
+    role: MessageRole.User,
+    content: input.value,
+  });
 
   // Add loading message
   const loadingMessageId = generateId();
-  addMessage({
+  agentChatStore.addMessage({
     id: loadingMessageId,
     content: "Thinking...",
     role: MessageRole.Assistant,
+    loading: true,
   });
 
   const userInput = input.value;
@@ -99,38 +107,43 @@ const handleInputEnter = async () => {
   await processUserInput(userInput);
 
   // Remove loading message
-  messages.value = messages.value.filter((msg) => msg.id !== loadingMessageId);
+  agentChatStore.removeMessage(loadingMessageId);
 };
 
-// Set up event listener when component is mounted
-onMounted(() => {
-  window.addEventListener("clear-chat-state", clearChatState);
-});
-
-// Clean up event listener when component is unmounted
-onUnmounted(() => {
-  window.removeEventListener("clear-chat-state", clearChatState);
-});
+const handleTaskRegenerate = async (messageId: string) => {
+  const message = agentChatStore.messages.find((msg) => msg.id === messageId);
+  if (message) {
+    if (message.taskType === TaskType.FlightSearch) {
+      await travelSearch.startFlightSearch();
+    } else if (message.taskType === TaskType.HotelSearch) {
+      await travelSearch.startHotelSearch();
+    }
+  }
+};
 </script>
 
 <template>
   <Container>
     <div class="flex flex-col justify-between w-full h-full">
-      <Welcome v-if="messages.length === 0">
+      <Welcome v-if="agentChatStore.messages.length === 0">
         <p class="text-gray-500 max-w-xl text-center">
           I'm here to help you in planning your experience. Tell me your travel plan and preferences
           and I'll give you flights and hotel suggestions.
         </p>
       </Welcome>
       <div v-else class="flex flex-col w-full h-full overflow-y-auto">
-        <ChatInterface :messages="messages" />
+        <ChatInterface
+          :messages="agentChatStore.messages"
+          :isLoading="agentChatStore.loading"
+          :onRegenerate="handleTaskRegenerate"
+        />
       </div>
       <TextInput
         placeholder="Where would you like to go?"
         :activeTab="Tabs.FlightsAndHotels"
         v-model="input"
         :onEnter="handleInputEnter"
-        :disabled="isLoading"
+        :disabled="agentChatStore.loading"
       />
     </div>
   </Container>

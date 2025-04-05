@@ -1,23 +1,18 @@
-import {
-  TaskType,
-  MessageRole,
-  type Message,
-  type TravelDetails,
-  type TravelPreferences,
-} from "@/types";
+import { TaskType, MessageRole, type Message } from "@/types";
 import { searchFlights, searchHotels } from "@/services/api";
-import type { ComputedRef } from "vue";
 import { generateId } from "@/utils/id";
+import { useTravelStore } from "@/stores/travel";
 
 export function useTravelSearch(
-  travelPreferences: ComputedRef<TravelPreferences | null>,
-  addMessage: (message: Message) => void,
+  addMessage: (message: Omit<Message, "id">) => void,
   setTaskProcessing: (taskType: TaskType, taskId: string) => void,
-  addTaskMessage: (taskType: TaskType, message: Message) => string
+  initializeTask: (taskType: TaskType, message: Message) => string
 ) {
+  const travelStore = useTravelStore();
+
   // Start flight search
   const startFlightSearch = async () => {
-    const preferences = travelPreferences.value;
+    const preferences = travelStore.preferences;
     if (!preferences) {
       console.error("Cannot start flight search: Travel details are missing");
       return;
@@ -25,10 +20,11 @@ export function useTravelSearch(
 
     try {
       // Create task message with progress
-      addTaskMessage(TaskType.FlightSearch, {
+      initializeTask(TaskType.FlightSearch, {
         id: generateId(),
-        content: "✈️  Finding available flights for your dates..",
-        role: MessageRole.Task,
+        content: "🛫 Finding available flights for your dates...",
+        role: MessageRole.Info,
+        loading: true,
       });
 
       // Call the flight search API
@@ -41,9 +37,9 @@ export function useTravelSearch(
     } catch (e) {
       console.error("Error starting flight search:", e);
       addMessage({
-        id: generateId(),
         content: "Failed to start flight search. Please try again.",
-        role: MessageRole.Assistant,
+        role: MessageRole.Task,
+        taskType: TaskType.FlightSearch,
       });
       return null;
     }
@@ -51,7 +47,7 @@ export function useTravelSearch(
 
   // Start hotel search
   const startHotelSearch = async () => {
-    const preferences = travelPreferences.value;
+    const preferences = travelStore.preferences;
     if (!preferences) {
       console.error("Cannot start hotel search: Travel details are missing");
       return;
@@ -59,10 +55,11 @@ export function useTravelSearch(
 
     try {
       // Create task message with progress
-      addTaskMessage(TaskType.HotelSearch, {
+      initializeTask(TaskType.HotelSearch, {
         id: generateId(),
         content: "🏨 Finding hotels for your stay...",
-        role: MessageRole.Task,
+        role: MessageRole.Info,
+        loading: true,
       });
 
       // Call the hotel search API
@@ -75,9 +72,9 @@ export function useTravelSearch(
     } catch (e) {
       console.error("Error starting hotel search:", e);
       addMessage({
-        id: generateId(),
         content: "Failed to start hotel search. Please try again.",
-        role: MessageRole.Assistant,
+        role: MessageRole.Task,
+        taskType: TaskType.HotelSearch,
       });
       return null;
     }

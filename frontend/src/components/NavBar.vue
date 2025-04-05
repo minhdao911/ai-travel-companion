@@ -3,6 +3,10 @@ import { RouterLink, useRoute } from "vue-router";
 import Button from "./Button.vue";
 import Icon from "./Icon.vue";
 import router from "@/router";
+import { useAgentChatStore, useAssistantChatStore } from "@/stores/chat";
+
+const agentChatStore = useAgentChatStore();
+const assistantChatStore = useAssistantChatStore();
 
 const links = [
   {
@@ -26,8 +30,9 @@ const handleNewChat = () => {
   // Navigate to home page
   router.push("/");
 
-  // Emit a custom event that parent components can listen to for clearing state
-  window.dispatchEvent(new CustomEvent("clear-chat-state"));
+  // Clear the chat state
+  agentChatStore.resetChat();
+  assistantChatStore.resetChat();
 };
 </script>
 
