@@ -1,55 +1,65 @@
 import { ref, onUnmounted } from "vue";
 import { TaskStatus, TaskType, MessageRole, type Message } from "@/types";
 import { checkTaskStatus } from "@/services/api";
-import { generateId } from "@/services/id";
+import { generateId } from "@/utils/id";
+import { marked } from "marked";
+
+// Define interface for task state
+interface TaskState {
+  id: string | null;
+  status: TaskStatus;
+  messageId: string | null;
+  processingMessageSent: boolean;
+}
+
+// Define task handling configuration for different task types
+interface TaskHandlerConfig {
+  processingMessage: string;
+  completedMessage: string;
+}
 
 export function useTasks(
   addMessage: (message: Message) => void,
   updateMessage: (id: string, data: Partial<Message>) => void
 ) {
   const pollInterval = ref<number | null>(null);
-  const taskMessages = ref<{ [taskType: string]: string | null }>({
-    [TaskType.HotelSearch]: null,
-    [TaskType.FlightSearch]: null,
-    [TaskType.FlightPick]: null,
-    [TaskType.HotelPick]: null,
+
+  // Consolidated task state
+  const taskStates = ref<Record<TaskType, TaskState>>({
+    [TaskType.HotelSearch]: {
+      id: null,
+      status: TaskStatus.Idle,
+      messageId: null,
+      processingMessageSent: false,
+    },
+    [TaskType.FlightSearch]: {
+      id: null,
+      status: TaskStatus.Idle,
+      messageId: null,
+      processingMessageSent: false,
+    },
   });
 
-  const tasks = ref<{
-    [TaskType.HotelSearch]: {
-      id: string | null;
-      status: TaskStatus;
-    };
+  // Task-specific handling config
+  const taskHandlers: Record<TaskType, TaskHandlerConfig> = {
     [TaskType.FlightSearch]: {
-      id: string | null;
-      status: TaskStatus;
-    };
-    [TaskType.FlightPick]: {
-      id: string | null;
-      status: TaskStatus;
-    };
-    [TaskType.HotelPick]: {
-      id: string | null;
-      status: TaskStatus;
-    };
-  }>({
-    [TaskType.HotelSearch]: { id: null, status: TaskStatus.Pending },
-    [TaskType.FlightSearch]: { id: null, status: TaskStatus.Pending },
-    [TaskType.FlightPick]: { id: null, status: TaskStatus.Pending },
-    [TaskType.HotelPick]: { id: null, status: TaskStatus.Pending },
-  });
+      processingMessage: "✈️  Analyzing flight options and prices..",
+      completedMessage: "✈️  Flight search completed!",
+    },
+    [TaskType.HotelSearch]: {
+      processingMessage: "🏨  Searching for hotels..",
+      completedMessage: "🏨  Hotel search completed!",
+    },
+  };
 
   // Update task message progress based on status
   const updateTaskMessageProgress = (taskType: TaskType) => {
-    const messageId = taskMessages.value[taskType];
-    const task = tasks.value[taskType];
+    const { messageId, status } = taskStates.value[taskType];
 
-    if (messageId && task) {
-      if (task.status === TaskStatus.Completed) {
-        updateMessage(messageId, { completed: true });
-      } else {
-        updateMessage(messageId, { completed: false });
-      }
+    if (messageId) {
+      updateMessage(messageId, {
+        loading: status === TaskStatus.Processing || status === TaskStatus.Pending,
+      });
     }
   };
 
@@ -66,61 +76,78 @@ export function useTasks(
   };
 
   const setTaskProcessing = (taskType: TaskType, taskId: string) => {
-    if (tasks.value[taskType]) {
-      tasks.value[taskType].id = taskId;
-      tasks.value[taskType].status = TaskStatus.Processing;
-      // Update progress for this task
+    const taskState = taskStates.value[taskType];
+    if (taskState) {
+      taskState.id = taskId;
+      taskState.status = TaskStatus.Processing;
+      taskState.processingMessageSent = false;
       updateTaskMessageProgress(taskType);
+    }
+  };
+
+  const handleTaskStatusChange = async (taskType: TaskType, status: TaskStatus, data?: any) => {
+    const taskState = taskStates.value[taskType];
+    const handler = taskHandlers[taskType];
+
+    if (status === TaskStatus.Failed) {
+      addMessage({
+        id: generateId(),
+        content: `${taskType} failed. Please try again.`,
+        role: MessageRole.Task,
+        loading: false,
+      });
+    } else if (status === TaskStatus.Completed) {
+      if (taskType === TaskType.FlightSearch) {
+        const output = await marked.parse(data);
+        addMessage({
+          id: generateId(),
+          content: output,
+          role: MessageRole.Task,
+          loading: false,
+        });
+      }
+    } else if (status === TaskStatus.Processing) {
+      if (data?.url && !taskState.processingMessageSent) {
+        addMessage({
+          id: generateId(),
+          content: handler.processingMessage,
+          role: MessageRole.Task,
+        });
+        taskState.processingMessageSent = true;
+      }
     }
   };
 
   const monitorTaskStatus = async () => {
     try {
       // Check statuses of all active tasks
-      for (const taskType in tasks.value) {
-        const task = tasks.value[taskType as TaskType];
-        if (task.id && task.status !== TaskStatus.Completed && task.status !== TaskStatus.Failed) {
-          const { status, data } = await checkTaskStatus(task.id);
+      for (const taskType in taskStates.value) {
+        const taskState = taskStates.value[taskType as TaskType];
+        if (taskState.id) {
+          const { status, data } = await checkTaskStatus(taskState.id);
 
           // Update task status if changed
-          if (task.status !== status) {
-            task.status = status;
-            // Update progress for this task
+          if (taskState.status !== status) {
+            taskState.status = status;
             updateTaskMessageProgress(taskType as TaskType);
-          }
 
-          // Handle status changes
-          if (status === TaskStatus.Completed) {
-            if (taskType === TaskType.FlightSearch) {
-              // For completed tasks, create a new message without progress bar
-              addMessage({
-                id: generateId(),
-                content: `Flight search completed! View your flights <a class="underline" href="${data.url}" target="_blank">here</a>.`,
-                role: MessageRole.Task,
-                completed: true,
-              });
-            } else if (taskType === TaskType.HotelSearch) {
-              addMessage({
-                id: generateId(),
-                content: "Hotel search completed!",
-                role: MessageRole.Task,
-                completed: true,
-              });
+            // Reset processing message flag when status changes from Processing to something else
+            if (status !== TaskStatus.Processing) {
+              taskState.processingMessageSent = false;
             }
-          } else if (status === TaskStatus.Failed) {
-            addMessage({
-              id: generateId(),
-              content: `${taskType} search failed. Please try again.`,
-              role: MessageRole.Task,
-              completed: true,
-            });
+
+            // Handle specific task status changes
+            await handleTaskStatusChange(taskType as TaskType, status, data);
           }
         }
       }
 
       // Check if all tasks are completed or failed
-      const allTasksFinished = Object.values(tasks.value).every(
-        (task) => task.status === TaskStatus.Completed || task.status === TaskStatus.Failed
+      const allTasksFinished = Object.values(taskStates.value).every(
+        (task) =>
+          task.status === TaskStatus.Completed ||
+          task.status === TaskStatus.Failed ||
+          task.status === TaskStatus.Idle
       );
 
       if (allTasksFinished) {
@@ -136,7 +163,7 @@ export function useTasks(
         id: generateId(),
         content: "Task status check failed. Please try again.",
         role: MessageRole.Task,
-        completed: true,
+        loading: false,
       });
       return true; // Stop due to error
     }
@@ -144,14 +171,13 @@ export function useTasks(
 
   // Store task message ID and set initial progress
   const addTaskMessage = (taskType: TaskType, message: Message) => {
-    const task = tasks.value[taskType];
-    // Store message ID for later updates
-    taskMessages.value[taskType] = message.id;
+    const taskState = taskStates.value[taskType];
 
-    // Set initial progress based on current task status
-    if (task) {
-      message.completed = task.status === TaskStatus.Completed;
-    }
+    // Store message ID for later updates
+    taskState.messageId = message.id;
+
+    // Set initial progress
+    message.loading = true;
 
     addMessage(message);
     return message.id;
@@ -163,7 +189,7 @@ export function useTasks(
   });
 
   return {
-    tasks,
+    tasks: taskStates,
     startPolling,
     stopPolling,
     setTaskProcessing,

@@ -32,7 +32,7 @@ const handleNewChat = () => {
 </script>
 
 <template>
-  <nav class="flex flex-col gap-6 p-4 w-72 h-full text-white">
+  <nav class="flex flex-col gap-6 p-4 min-w-64 h-full text-white">
     <Button variant="primary" @click="handleNewChat">New Chat</Button>
     <div class="flex flex-col gap-2.5 w-full">
       <p class="font-medium">Features</p>

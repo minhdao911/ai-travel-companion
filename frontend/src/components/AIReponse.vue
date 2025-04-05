@@ -40,10 +40,7 @@ const handleCopy = () => {
       <Icon name="bot" />
     </div>
     <div class="flex-1 flex flex-col gap-2">
-      <div
-        class="whitespace-pre-wrap break-words text-white font-sans"
-        v-html="formattedContent"
-      ></div>
+      <div class="whitespace-pre-wrap break-words text-white" v-html="formattedContent"></div>
       <div class="flex items-center gap-1">
         <Button variant="icon" tooltip tooltipText="Regenerate">
           <Icon name="refresh" size="text-base" />

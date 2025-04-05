@@ -22,7 +22,7 @@ const props = defineProps<{
       <TaskResponse
         v-if="message.role === 'task'"
         :content="message.content"
-        :isLoading="!message.completed"
+        :isLoading="message.loading"
       />
     </template>
   </div>

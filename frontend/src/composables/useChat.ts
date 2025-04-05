@@ -1,10 +1,10 @@
 import { ref } from "vue";
-import { MessageRole, type Message, type TravelDetails } from "@/types";
-import { generateId } from "@/services/id";
+import { MessageRole, type Message, type TravelPreferences } from "@/types";
+import { generateId } from "@/utils/id";
 
 export function useChat() {
   const messages = ref<Message[]>([]);
-  const travelDetails = ref<TravelDetails | null>(null);
+  const travelPreferences = ref<TravelPreferences | null>(null);
   const isLoading = ref(false);
 
   // Add a new message to the chat
@@ -19,9 +19,9 @@ export function useChat() {
     }
   };
 
-  // Set travel details
-  const setTravelDetails = (details: TravelDetails) => {
-    travelDetails.value = details;
+  // Set travel preferences
+  const setTravelPreferences = (preferences: TravelPreferences) => {
+    travelPreferences.value = preferences;
   };
 
   // Create a user message
@@ -54,17 +54,17 @@ export function useChat() {
   // Clear all chat state
   const clearChatState = () => {
     messages.value = [];
-    travelDetails.value = null;
+    travelPreferences.value = null;
     isLoading.value = false;
   };
 
   return {
     messages,
-    travelDetails,
+    travelPreferences,
     isLoading,
     addMessage,
     updateMessage,
-    setTravelDetails,
+    setTravelPreferences,
     createUserMessage,
     createAssistantMessage,
     createTaskMessage,

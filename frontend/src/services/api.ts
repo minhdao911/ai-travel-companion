@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { Message, TravelDetails, TaskType, TaskStatus } from "@/types";
+import type { Message, TravelPreferences } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -16,7 +16,7 @@ export const getTravelDetails = async (
 };
 
 // Function to search for flights
-export const searchFlights = async (travelDetails: TravelDetails) => {
+export const searchFlights = async (travelDetails: TravelPreferences) => {
   const response = await axios.post(`${API_URL}/api/search-flights`, {
     origin_city_name: travelDetails.origin_city_name,
     destination_city_name: travelDetails.destination_city_name,
@@ -28,12 +28,12 @@ export const searchFlights = async (travelDetails: TravelDetails) => {
 };
 
 // Function to search for hotels
-export const searchHotels = async (travelDetails: TravelDetails) => {
+export const searchHotels = async (travelPreferences: TravelPreferences) => {
   const response = await axios.post(`${API_URL}/api/search-hotels`, {
-    destination_city_name: travelDetails.destination_city_name,
-    start_date: travelDetails.start_date,
-    end_date: travelDetails.end_date,
-    num_guests: travelDetails.num_guests,
+    destination_city_name: travelPreferences.destination_city_name,
+    start_date: travelPreferences.start_date,
+    end_date: travelPreferences.end_date,
+    num_guests: travelPreferences.num_guests,
   });
   return response.data;
 };

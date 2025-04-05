@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from ai.travel_details import generate_conversation_response
+from ai.travel_summary import get_travel_summary
 from pydantic import BaseModel
 from typing import List, Optional
 import asyncio
-from flights.flight_scraper import get_flight_url
+from flights.flight_scraper import get_flight_url, scrape_flights
 from tasks import TaskManager, TaskStatus
 import threading
 
@@ -55,8 +56,22 @@ def process_flights_search(task_id, origin, destination, start_date, end_date, n
         if not url:
             raise Exception("Failed to get flight search url")
         
+        task_manager.update_task_status(task_id, TaskStatus.PROCESSING, data={"url": url})
+        
+        # Scrape flights
+        flight_results = run_async(scrape_flights(url))
+        print("--- Flight results ---")
+        print(flight_results)
+        if not flight_results:
+            raise Exception("Failed to scrape flights")
+        
+        # Get flight summary
+        summary = get_travel_summary(flight_results)
+        print("--- Flight summary ---")
+        print(summary)
+        
         # Update task status to completed
-        task_manager.update_task_status(task_id, TaskStatus.COMPLETED, data={"url": url})
+        task_manager.update_task_status(task_id, TaskStatus.COMPLETED, data=summary)
     except Exception as e:
         print(f"Error processing flights search: {str(e)}")
         task_manager.update_task_status(task_id, TaskStatus.FAILED, error=str(e))

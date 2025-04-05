@@ -10,6 +10,7 @@ export enum MessageRole {
 }
 
 export enum TaskStatus {
+  Idle = "idle",
   Pending = "pending",
   Processing = "processing",
   Completed = "completed",
@@ -17,54 +18,64 @@ export enum TaskStatus {
 }
 
 export enum TaskType {
-  FlightSearch = "flightSearch",
-  HotelSearch = "hotelSearch",
-  FlightPick = "flightPick",
-  HotelPick = "hotelPick",
+  FlightSearch = "Flight Search",
+  HotelSearch = "Hotel Search",
 }
 
 export type Message = {
   id: string;
   role: MessageRole;
   content: string;
-  completed?: boolean;
+  loading?: boolean;
+};
+
+export type TravelPreferences = {
+  origin_airport_code?: string;
+  destination_airport_code?: string;
+  origin_city_name: string;
+  destination_city_name: string;
+  num_guests: number;
+  start_date: string;
+  end_date: string;
+  budget?: number;
+  accommodation?: {
+    type?: string;
+    max_price_per_night?: number;
+    amenities?: string[];
+  };
+  flight?: {
+    class?: string;
+    direct?: boolean;
+  };
+  activities?: string[];
+  food_preferences?: string[];
+};
+
+export type Price = {
+  amount: number;
+  currency: string;
+};
+
+export type FlightDetails = {
+  arrival_date: string;
+  arrival_time: string;
+  departure_date: string;
+  departure_time: string;
+  origin_city_name: string;
+  destination_city_name: string;
+  origin_airport_code: string;
+  destination_airport_code: string;
+  price: Price;
+  num_stops: number;
+  duration: string;
+  airlines_and_flight_numbers: string;
+  stop_locations: string;
 };
 
 export type TravelDetails = {
-  /** The 3-letter airport code for departure */
-  origin_airport_code?: string;
-  /** The 3-letter airport code for arrival */
-  destination_airport_code?: string;
-  /** The name of the departure city */
-  origin_city_name: string;
-  /** The name of the destination city */
-  destination_city_name: string;
-  /** Number of travelers */
-  num_guests: number;
-  /** Departure date in format like May 2, 2025 */
-  start_date: string;
-  /** Return date in format like May 9, 2025 */
-  end_date: string;
-  /** Total budget for the trip in USD */
-  budget?: number;
-  /** Accommodation preferences */
-  accommodation?: {
-    /** Type of accommodation (hotel, hostel, etc.) */
-    type?: string;
-    /** Maximum price per night in USD */
-    max_price_per_night?: number;
-    /** List of desired amenities */
-    amenities?: string[];
+  flight: {
+    outbound_flight: FlightDetails;
+    return_flight: FlightDetails;
+    total_price: Price;
   };
-  /** Flight preferences */
-  flight?: {
-    /** Flight class (economy, business, first) */
-    class?: string;
-    /** Whether direct flights are preferred */
-    direct?: boolean;
-  };
-  /** List of desired activities */
-  activities?: string[];
-  /** List of food preferences */
-  food_preferences?: string[];
 };

@@ -8,8 +8,8 @@ travel_preferences_schema = {
         "origin_city_name": {"type": "string", "description": "The name of the departure city"},
         "destination_city_name": {"type": "string", "description": "The name of the destination city"},
         "num_guests": {"type": "integer", "description": "Number of travelers"},
-        "start_date": {"type": "string", "description": "Departure date in format like May 2, 2025"},
-        "end_date": {"type": "string", "description": "Return date in format like May 9, 2025"},
+        "start_date": {"type": "string", "description": "Departure date in format like 2025-05-02"},
+        "end_date": {"type": "string", "description": "Return date in format like 2025-05-09"},
         "budget": {"type": "integer", "description": "Total budget for the trip in USD"},
         "accommodation": {
             "type": "object",

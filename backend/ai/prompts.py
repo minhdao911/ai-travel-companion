@@ -1,4 +1,4 @@
-def travel_details_prompt(input: str) -> str:
+def travel_preferences_prompt(input: str) -> str:
     return f"""
         Read the following information from the user and extract the data into the structured output fields.
         
@@ -20,4 +20,17 @@ def travel_details_prompt(input: str) -> str:
         When providing dates give the format like this: 2025-05-02
         When providing airport codes give 3 uppercase letters.
         Make sure the airport code is valid.
+    """
+
+def travel_details_prompt(input: str) -> str:
+    return f"""
+        Read the following information from the user and extract the data into the structured output fields.
+        
+        {input}
+
+        When providing dates give the format like this: 2025-05-02
+        When providing times give the format like this: 03:00 PM
+        when providing stop locations give the city and airport code like this: Paris (CDG), if you don't know the city, just give the airport code
+        When providing airlines and flight numbers give the format like this: Air France (AF 1234)
+        If you don't know the origin or destination city, don't fill in the airport code, leave the city name empty.
     """

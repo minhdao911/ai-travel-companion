@@ -9,16 +9,16 @@ import { getTravelDetails } from "@/services/api";
 import { useChat } from "@/composables/useChat";
 import { useTasks } from "@/composables/useTasks";
 import { useTravelSearch } from "@/composables/useTravelSearch";
-import { generateId } from "@/services/id";
+import { generateId } from "@/utils/id";
 
 // Initialize composables
 const {
   messages,
-  travelDetails,
+  travelPreferences,
   isLoading,
   addMessage,
   updateMessage,
-  setTravelDetails,
+  setTravelPreferences,
   createUserMessage,
   createAssistantMessage,
   clearChatState,
@@ -29,7 +29,7 @@ const { startPolling, setTaskProcessing, addTaskMessage } = useTasks(addMessage,
 
 // Initialize travel search with computed reference
 const travelSearch = useTravelSearch(
-  computed(() => travelDetails.value),
+  computed(() => travelPreferences.value),
   addMessage,
   setTaskProcessing,
   addTaskMessage
@@ -52,8 +52,8 @@ const processUserInput = async (userInput: string) => {
     const responseData = await getTravelDetails(userInput, conversationHistory);
 
     // Store travel details if available
-    if (responseData.complete && responseData.travel_details) {
-      setTravelDetails(responseData.travel_details);
+    if (responseData.complete && responseData.travel_preferences) {
+      setTravelPreferences(responseData.travel_preferences);
 
       addMessage(createAssistantMessage(responseData.message));
 
@@ -118,8 +118,8 @@ onUnmounted(() => {
     <div class="flex flex-col justify-between w-full h-full">
       <Welcome v-if="messages.length === 0">
         <p class="text-gray-500 max-w-xl text-center">
-          I'm here to help you in planning your experience. Tell me your travel plan and I'll give
-          you flights and hotel suggestions.
+          I'm here to help you in planning your experience. Tell me your travel plan and preferences
+          and I'll give you flights and hotel suggestions.
         </p>
       </Welcome>
       <div v-else class="flex flex-col w-full h-full overflow-y-auto">

@@ -1,4 +1,7 @@
 from playwright.async_api import async_playwright
+from browser_use import Browser, Agent
+from ai.models import model
+from flights.prompts import flight_scrape_from_url_prompt
 
 class FlightScraper:
     async def start(self):
@@ -7,13 +10,21 @@ class FlightScraper:
         self.context = await self.browser.new_context()
         self.page = await self.context.new_page()
 
+    async def close(self):
+        try:
+            await self.context.close()
+            await self.browser.close()
+            await self.playwright.stop()
+        except Exception as e:
+            print(f"Error during playwright cleanup: {str(e)}")
+
     async def fill_and_select_city(self, input_element, city_name):
         try:
             await input_element.type(city_name, delay=50)
             await self.page.wait_for_timeout(1000)
 
             # Wait for the dropdown to appear
-            dropdown_item = await self.page.wait_for_selector(f"li[role='option'][aria-label^='{city_name}']", timeout=3000)
+            dropdown_item = await self.page.wait_for_selector(f"li[role='option'][aria-label^='{city_name}']", timeout=5000)
             if dropdown_item:
                 # Click on the suggestion that starts with the city name
                 await dropdown_item.click()
@@ -112,14 +123,23 @@ class FlightScraper:
         except Exception as e:
             print(f"Error filling flight search: {str(e)}")
             return None
-        
-    async def close(self):
-        try:
-            await self.context.close()
-            await self.browser.close()
-            await self.playwright.stop()
-        except Exception as e:
-            print(f"Error during playwright cleanup: {str(e)}")
+
+async def scrape_flights(url, preferences = None):
+    try:
+        browser = Browser()
+        agent = Agent(
+            task=flight_scrape_from_url_prompt(url, preferences),
+            browser=browser,
+            llm=model
+        )
+
+        history = await agent.run()
+        await browser.close()
+        result = history.final_result()
+        return result
+    except Exception as e:
+        print(f"Error scraping flights: {str(e)}")
+        return None        
 
 async def get_flight_url(origin, destination, start_date, end_date, num_guests):
     try:

@@ -1,16 +1,16 @@
 from ai.models import model
 from ai.travel_schemas import travel_preferences_schema
 from utils.datetime import format_date
-from ai.prompts import travel_details_prompt
+from ai.prompts import travel_preferences_prompt
 
-user_input_model = model.with_structured_output(travel_preferences_schema)
+preferences_model = model.with_structured_output(travel_preferences_schema)
 
-def get_travel_details(input: str) -> dict:
-    prompt = travel_details_prompt(input)
+def get_travel_preferences(input: str) -> dict:
+    prompt = travel_preferences_prompt(input)
     try:
-        return user_input_model.invoke(prompt)
+        return preferences_model.invoke(prompt)
     except Exception as e:
-        print(f"Error in get_travel_details: {str(e)}")
+        print(f"Error getting travel preferences: {str(e)}")
         raise ValueError(f"Error parsing user input: {e}")
 
 def check_missing_information(travel_details: dict) -> dict:
@@ -64,10 +64,10 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
             formatted_conversation += f"{role}: {message.content}\n"
             
         # Extract travel details from formatted conversation
-        travel_details = get_travel_details(formatted_conversation)
+        travel_preferences = get_travel_preferences(formatted_conversation)
         
         # Check if we have all the required information
-        check_result = check_missing_information(travel_details)
+        check_result = check_missing_information(travel_preferences)
         
         if not check_result["complete"]:
             # Missing information - generate a friendly conversational response
@@ -102,18 +102,18 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
             }
         else:            
             # Create a conversational summary response
-            message = f"Perfect! I've got all the details for your trip to {travel_details['destination_city_name']}. Here's a summary:\n\n"
-            message += f"• Traveling from {travel_details['destination_city_name']} to {travel_details['origin_city_name']}\n"
-            message += f"• {travel_details['num_guests']} traveler{'s' if travel_details['num_guests'] > 1 else ''}\n"
-            message += f"• Departing on {format_date(travel_details['start_date'])}\n"
-            message += f"• Returning on {format_date(travel_details['end_date'])}\n"
-            message += f"• Budget: {f"${travel_details['budget']}" if travel_details['budget'] else "Not specified"}\n\n"
+            message = f"Perfect! I've got all the details for your trip to {travel_preferences['destination_city_name']}. Here's a summary:\n\n"
+            message += f"• Traveling from {travel_preferences['origin_city_name']} to {travel_preferences['destination_city_name']}\n"
+            message += f"• {travel_preferences['num_guests']} traveler{'s' if travel_preferences['num_guests'] > 1 else ''}\n"
+            message += f"• Departing on {format_date(travel_preferences['start_date'])}\n"
+            message += f"• Returning on {format_date(travel_preferences['end_date'])}\n"
+            message += f"• Budget: {f"${travel_preferences['budget']}" if travel_preferences['budget'] else "Not specified"}\n\n"
             message += "I can now help you find the best flights and accommodations for your trip."
             
             return {
                 "complete": True,
                 "message": message,
-                "travel_details": travel_details
+                "travel_preferences": travel_preferences
             }
     
     except Exception as e:

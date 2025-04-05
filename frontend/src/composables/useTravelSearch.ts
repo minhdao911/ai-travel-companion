@@ -1,18 +1,24 @@
-import { TaskType, MessageRole, type Message, type TravelDetails } from "@/types";
+import {
+  TaskType,
+  MessageRole,
+  type Message,
+  type TravelDetails,
+  type TravelPreferences,
+} from "@/types";
 import { searchFlights, searchHotels } from "@/services/api";
 import type { ComputedRef } from "vue";
-import { generateId } from "@/services/id";
+import { generateId } from "@/utils/id";
 
 export function useTravelSearch(
-  travelDetails: ComputedRef<TravelDetails | null>,
+  travelPreferences: ComputedRef<TravelPreferences | null>,
   addMessage: (message: Message) => void,
   setTaskProcessing: (taskType: TaskType, taskId: string) => void,
   addTaskMessage: (taskType: TaskType, message: Message) => string
 ) {
   // Start flight search
   const startFlightSearch = async () => {
-    const details = travelDetails.value;
-    if (!details) {
+    const preferences = travelPreferences.value;
+    if (!preferences) {
       console.error("Cannot start flight search: Travel details are missing");
       return;
     }
@@ -26,7 +32,7 @@ export function useTravelSearch(
       });
 
       // Call the flight search API
-      const response = await searchFlights(details);
+      const response = await searchFlights(preferences);
 
       // Store the task ID and update status
       setTaskProcessing(TaskType.FlightSearch, response.task_id);
@@ -45,8 +51,8 @@ export function useTravelSearch(
 
   // Start hotel search
   const startHotelSearch = async () => {
-    const details = travelDetails.value;
-    if (!details) {
+    const preferences = travelPreferences.value;
+    if (!preferences) {
       console.error("Cannot start hotel search: Travel details are missing");
       return;
     }
@@ -60,7 +66,7 @@ export function useTravelSearch(
       });
 
       // Call the hotel search API
-      const response = await searchHotels(details);
+      const response = await searchHotels(preferences);
 
       // Store the task ID
       setTaskProcessing(TaskType.HotelSearch, response.task_id);

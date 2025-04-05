@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import Button from "@/components/Button.vue";
-import router from "@/router";
 import { useTextareaAutosize } from "@vueuse/core";
 import { Tabs } from "@/types";
 import { computed, ref, watch } from "vue";
@@ -11,6 +9,7 @@ const props = defineProps<{
   placeholder: string;
   activeTab: Tabs;
   modelValue: string;
+  disabled?: boolean;
   onEnter: () => void;
 }>();
 
@@ -48,14 +47,6 @@ watch(
   { immediate: true }
 );
 
-const handleFlightsAndHotelsClick = () => {
-  router.push("/");
-};
-
-const handleAssistantClick = () => {
-  router.push("/assistant");
-};
-
 const handleEnter = (event: KeyboardEvent) => {
   if (!event.shiftKey) {
     event.preventDefault();
@@ -72,6 +63,7 @@ const handleEnter = (event: KeyboardEvent) => {
       v-model="inputValue"
       class="w-full border-none resize-none text-white placeholder-gray-500 focus:outline-none max-h-[10rem] hidden-scrollbar"
       :placeholder="props.placeholder"
+      :disabled="props.disabled"
       rows="3"
       @keydown.enter="handleEnter"
     />
