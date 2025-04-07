@@ -5,6 +5,8 @@ import { useTravelStore } from "@/stores/travel";
 import { marked } from "marked";
 import { useTaskStore } from "@/stores/tasks";
 import { generateId } from "@/utils/id";
+import { formatTaskType } from "@/utils/common";
+import { useTravelSearch } from "@/composables/useTravelSearch";
 
 export function useTasks(
   setLoading: (loading: boolean) => void,
@@ -29,10 +31,13 @@ export function useTasks(
 
   const startPolling = (taskType: TaskType) => {
     // Poll every 2 seconds
-    pollInterval.value = setInterval(() => monitorTaskStatus(taskType), 2000) as unknown as number;
+    pollInterval.value = setInterval(() => {
+      monitorTaskStatus(taskType);
+    }, 2000) as unknown as number;
   };
 
   const stopPolling = () => {
+    console.log("Stop polling", pollInterval.value);
     if (pollInterval.value !== null) {
       clearInterval(pollInterval.value);
       pollInterval.value = null;
@@ -47,6 +52,7 @@ export function useTasks(
         status: TaskStatus.Processing,
       });
       updateTaskMessageProgress(taskType);
+      startPolling(taskType);
     }
   };
 
@@ -54,62 +60,100 @@ export function useTasks(
     if (status === TaskStatus.Failed) {
       addMessage({
         role: MessageRole.Task,
-        content: `${taskType} failed. Please try again.`,
+        content: `${formatTaskType(taskType)} failed. Please try again.`,
         taskType: taskType,
       });
       setLoading(false);
     } else if (status === TaskStatus.Completed) {
       if (taskType === TaskType.FlightSearch) {
-        travelStore.setContext({ flights: data });
-
-        const loadingMessageId = generateId();
-        addMessage({
-          id: loadingMessageId,
-          role: MessageRole.Info,
-          content: "🛫 Analyzing flight options and prices...",
-          loading: true,
-        });
-
-        const summary = await getTravelSummary(data);
-        const output = await marked.parse(summary);
-
-        updateMessage(loadingMessageId, {
-          loading: false,
-        });
+        travelStore.setContext({ flight_results: data });
+        const output = await marked.parse(data);
         addMessage({
           role: MessageRole.Task,
-          content: output,
-          taskType: taskType,
+          content: "🛫 I got some flight options for you.",
+          collapsable_content: output,
+          taskType: TaskType.FlightSearch,
         });
-        setLoading(false);
+
+        if (!taskStore.tasks[TaskType.FlightSearch].regenerate) {
+          // Start hotel search
+          await startHotelSearch();
+        }
+      }
+      if (taskType === TaskType.HotelSearch) {
+        travelStore.setContext({ hotel_results: data });
+        const output = await marked.parse(data);
+        addMessage({
+          role: MessageRole.Task,
+          content: "🏨 I got some hotel options for you.",
+          collapsable_content: output,
+          taskType: TaskType.HotelSearch,
+        });
+
+        if (!taskStore.tasks[TaskType.HotelSearch].regenerate) {
+          // Get travel summary
+          await initializeTravelSummary();
+        }
       }
     }
   };
 
-  const isTaskProcessing = (status: TaskStatus) => {
-    return status === TaskStatus.Processing || status === TaskStatus.Pending;
+  const initializeTravelSummary = async () => {
+    const loadingMessageId = generateId();
+    addMessage({
+      id: loadingMessageId,
+      role: MessageRole.Info,
+      content: "✨ Putting together your perfect trip...",
+      loading: true,
+    });
+
+    try {
+      const summary = await getTravelSummary(travelStore.context!);
+      const output = await marked.parse(summary);
+
+      updateMessage(loadingMessageId, {
+        loading: false,
+      });
+      addMessage({
+        role: MessageRole.Assistant,
+        content: output,
+        taskType: TaskType.TravelSummary,
+      });
+    } catch (e) {
+      console.error("Error getting travel summary:", e);
+      updateMessage(loadingMessageId, {
+        loading: false,
+      });
+      addMessage({
+        role: MessageRole.Task,
+        content: "Failed to get travel summary. Please try again.",
+        taskType: TaskType.TravelSummary,
+      });
+    }
+
+    setLoading(false);
   };
 
   const monitorTaskStatus = async (taskType: TaskType) => {
     try {
       // Check status of active task
-      const taskState = taskStore.tasks[taskType];
+      const taskState = taskStore.tasks[taskType as TaskType];
       if (taskState.id) {
         const { status, data } = await checkTaskStatus(taskState.id);
 
         // Update task status if changed
         if (taskState.status !== status) {
-          taskStore.updateTask(taskType, { status });
+          taskStore.updateTask(taskType as TaskType, { status });
           updateTaskMessageProgress(taskType as TaskType);
+
+          if (status === TaskStatus.Completed || status === TaskStatus.Failed) {
+            stopPolling();
+          }
 
           // Handle specific task status changes
           await handleTaskStatusChange(taskType as TaskType, status, data);
         }
-
-        if (isTaskProcessing(status)) return false;
       }
-      stopPolling();
-      return true; // Some tasks are still running
     } catch (e) {
       console.error("Error checking task status:", e);
       addMessage({
@@ -117,21 +161,24 @@ export function useTasks(
         content: "An error occurred. Please try again.",
       });
       stopPolling();
-      return true; // Stop due to error
     }
   };
 
-  const initializeTask = (taskType: TaskType, message: Message) => {
+  const initializeTask = (taskType: TaskType, message: Message, regenerate?: boolean) => {
     // Store task message ID and set initial progress
     taskStore.addTask({
       status: TaskStatus.Processing,
       type: taskType,
       messageId: message.id,
+      regenerate: regenerate,
     });
 
     addMessage(message);
     return message.id;
   };
+
+  // Initialize travel search after functions are defined
+  const { startHotelSearch } = useTravelSearch(addMessage, setTaskProcessing, initializeTask);
 
   // Clean up polling when component is unmounted
   onUnmounted(() => {
@@ -143,5 +190,6 @@ export function useTasks(
     stopPolling,
     setTaskProcessing,
     initializeTask,
+    initializeTravelSummary,
   };
 }

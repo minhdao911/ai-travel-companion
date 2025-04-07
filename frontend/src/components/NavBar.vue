@@ -4,9 +4,13 @@ import Button from "./Button.vue";
 import Icon from "./Icon.vue";
 import router from "@/router";
 import { useAgentChatStore, useAssistantChatStore } from "@/stores/chat";
+import { useTaskStore } from "@/stores/tasks";
+import { useTravelStore } from "@/stores/travel";
 
 const agentChatStore = useAgentChatStore();
 const assistantChatStore = useAssistantChatStore();
+const taskStore = useTaskStore();
+const travelStore = useTravelStore();
 
 const links = [
   {
@@ -33,6 +37,12 @@ const handleNewChat = () => {
   // Clear the chat state
   agentChatStore.resetChat();
   assistantChatStore.resetChat();
+
+  // Clear the task state
+  taskStore.resetTasks();
+
+  // Clear the travel store
+  travelStore.resetTravel();
 };
 </script>
 

@@ -11,6 +11,7 @@ import { useTravelSearch } from "@/composables/useTravelSearch";
 import { generateId } from "@/utils/id";
 import { useTravelStore } from "@/stores/travel";
 import { useAgentChatStore } from "@/stores/chat";
+import { marked } from "marked";
 
 const travelStore = useTravelStore();
 const agentChatStore = useAgentChatStore();
@@ -18,7 +19,7 @@ const agentChatStore = useAgentChatStore();
 const input = ref("");
 
 // Initialize tasks system
-const { startPolling, setTaskProcessing, initializeTask } = useTasks(
+const { setTaskProcessing, initializeTask, initializeTravelSummary } = useTasks(
   agentChatStore.setLoading,
   agentChatStore.addMessage,
   agentChatStore.updateMessage
@@ -55,13 +56,12 @@ const processUserInput = async (userInput: string) => {
 
       agentChatStore.addMessage({
         role: MessageRole.Assistant,
-        content: responseData.message,
+        content: await marked.parse(responseData.message),
         loading: false,
       });
 
       // Start flight search
       await travelSearch.startFlightSearch();
-      startPolling(TaskType.FlightSearch);
 
       return;
     }
@@ -113,10 +113,18 @@ const handleInputEnter = async () => {
 const handleTaskRegenerate = async (messageId: string) => {
   const message = agentChatStore.messages.find((msg) => msg.id === messageId);
   if (message) {
-    if (message.taskType === TaskType.FlightSearch) {
-      await travelSearch.startFlightSearch();
-    } else if (message.taskType === TaskType.HotelSearch) {
-      await travelSearch.startHotelSearch();
+    switch (message.taskType) {
+      case TaskType.FlightSearch:
+        await travelSearch.startFlightSearch(true);
+        break;
+      case TaskType.HotelSearch:
+        await travelSearch.startHotelSearch(true);
+        break;
+      case TaskType.TravelSummary:
+        await initializeTravelSummary();
+        break;
+      default:
+        break;
     }
   }
 };

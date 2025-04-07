@@ -34,3 +34,22 @@ def travel_details_prompt(input: str) -> str:
         When providing airlines and flight numbers give the format like this: Air France (AF 1234)
         If you don't know the origin or destination city, don't fill in the airport code, leave the city name empty.
     """
+
+def get_travel_summary_prompt(flights: str, hotels: str, **kwargs) -> str:
+    return f"""Summarize the following flight and hotels, including the total price for the duration of the stay, and give me a nicely formatted output: 
+        
+        Given this information:
+        Flights: {flights}
+        Hotels: {hotels} (the price is per night)
+
+        Calculate the total price for the duration of the stay based on the provided information. The duration is from {kwargs.get('start_date', 'unknown start date')} to {kwargs.get('end_date', 'unknown end date')}.
+            
+        Make a recommendation for the best hotel and flight based on the user preferences: {kwargs}
+        If no preferences are provided:
+        - Make the flights recommendation including 1 outbound and 1 return flight based on the cheapest and shortest flights.
+        - Make the hotel recommendation based on the highest rating, cheapest price and good location.
+        
+        Note: The total price includes both the flights (sum of the outbound and return flights) and hotel costs for the entire duration.
+        
+        Only used basic markdown formatting in your reply so it can be easily parsed by the frontend.
+    """

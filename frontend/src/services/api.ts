@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { Message, TravelPreferences } from "@/types";
+import type { Message, TravelContext, TravelPreferences } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -16,32 +16,33 @@ export const getTravelDetails = async (
 };
 
 // Function to get travel summary
-export const getTravelSummary = async (flightResults: string) => {
+export const getTravelSummary = async (context: TravelContext) => {
   const response = await axios.post(`${API_URL}/api/travel-summary`, {
-    flight_results: flightResults,
+    ...context,
+    budget: context.budget || undefined,
   });
   return response.data;
 };
 
 // Function to search for flights
-export const searchFlights = async (travelDetails: TravelPreferences) => {
+export const searchFlights = async (preferences: TravelPreferences) => {
   const response = await axios.post(`${API_URL}/api/search-flights`, {
-    origin_city_name: travelDetails.origin_city_name,
-    destination_city_name: travelDetails.destination_city_name,
-    start_date: travelDetails.start_date,
-    end_date: travelDetails.end_date,
-    num_guests: travelDetails.num_guests,
+    origin_city_name: preferences.origin_city_name,
+    destination_city_name: preferences.destination_city_name,
+    start_date: preferences.start_date,
+    end_date: preferences.end_date,
+    num_guests: preferences.num_guests,
   });
   return response.data;
 };
 
 // Function to search for hotels
-export const searchHotels = async (travelPreferences: TravelPreferences) => {
+export const searchHotels = async (preferences: TravelPreferences) => {
   const response = await axios.post(`${API_URL}/api/search-hotels`, {
-    destination_city_name: travelPreferences.destination_city_name,
-    start_date: travelPreferences.start_date,
-    end_date: travelPreferences.end_date,
-    num_guests: travelPreferences.num_guests,
+    destination_city_name: preferences.destination_city_name,
+    start_date: preferences.start_date,
+    end_date: preferences.end_date,
+    num_guests: preferences.num_guests,
   });
   return response.data;
 };

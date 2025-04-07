@@ -1,7 +1,7 @@
 from ai.models import model
 from ai.travel_schemas import travel_preferences_schema
 from utils.datetime import format_date
-from ai.prompts import travel_preferences_prompt
+from ai.prompts import travel_preferences_prompt, get_travel_summary_prompt
 
 preferences_model = model.with_structured_output(travel_preferences_schema)
 
@@ -13,6 +13,15 @@ def get_travel_preferences(input: str) -> dict:
         print(f"Error getting travel preferences: {str(e)}")
         raise ValueError(f"Error parsing user input: {e}")
 
+def get_travel_summary(flights: str, hotels: str, **kwargs) -> str:
+    prompt = get_travel_summary_prompt(flights, hotels, **kwargs)
+    print(prompt)
+    try:
+        return model.invoke(prompt).content
+    except Exception as e:
+        print(f"Error getting travel summary: {str(e)}")
+        raise SystemError(f"Error getting travel summary: {e}")
+    
 def check_missing_information(travel_details: dict) -> dict:
     """
     Check if any required information is missing and return a response
@@ -73,7 +82,7 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
             # Missing information - generate a friendly conversational response
             missing_fields = check_result["missing_fields"]
             response_templates = {
-                "origin_airport_code": "I'll need to know where you're departing from. Could you please provide the airport code or city you'll be traveling from?",
+                "origin_airport_code": "Could you please provide the airport code or city you'll be traveling from?",
                 "destination_airport_code": "Which airport are you flying to? If you're not sure of the code, just let me know the city.",
                 "destination_city_name": "What city are you planning to visit?",
                 "start_date": "When are you planning to depart? (e.g., May 2, 2025)",
@@ -90,7 +99,7 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
                 # Multiple fields missing
                 message = "Thanks for your travel request! I need a few more details to help you plan your trip:\n\n"
                 for field in missing_fields[:3]:  # Limit to first 3 missing fields to avoid overwhelming the user
-                    message += f"• {response_templates.get(field, f'Could you please provide the {field}?')}\n"
+                    message += f"* {response_templates.get(field, f'Could you please provide the {field}?')}\n"
                 
                 if len(missing_fields) > 3:
                     message += f"\nWe'll fill in the other details after that."
@@ -102,12 +111,13 @@ def generate_conversation_response(conversation_history: list = []) -> dict:
             }
         else:            
             # Create a conversational summary response
-            message = f"Perfect! I've got all the details for your trip to {travel_preferences['destination_city_name']}. Here's a summary:\n\n"
-            message += f"• Traveling from {travel_preferences['origin_city_name']} to {travel_preferences['destination_city_name']}\n"
-            message += f"• {travel_preferences['num_guests']} traveler{'s' if travel_preferences['num_guests'] > 1 else ''}\n"
-            message += f"• Departing on {format_date(travel_preferences['start_date'])}\n"
-            message += f"• Returning on {format_date(travel_preferences['end_date'])}\n"
-            message += f"• Budget: {f"${travel_preferences['budget']}" if travel_preferences['budget'] else "Not specified"}\n\n"
+            message = f"Perfect! I've got all the details for your trip to {travel_preferences['destination_city_name']}.\n\n"
+            message += f"**Trip Summary:**\n\n"
+            message += f"* **Departure**: {travel_preferences['origin_city_name']} to {travel_preferences['destination_city_name']}\n"
+            message += f"* **Travelers**: {travel_preferences['num_guests']} traveler{'s' if travel_preferences['num_guests'] > 1 else ''}\n"
+            message += f"* **Outbound**: {format_date(travel_preferences['start_date'])}\n"
+            message += f"* **Return**: {format_date(travel_preferences['end_date'])}\n"
+            message += f"* **Budget**: {f"${travel_preferences['budget']}" if travel_preferences['budget'] else "Not specified"}\n\n"
             message += "I can now help you find the best flights and accommodations for your trip."
             
             return {

@@ -40,5 +40,5 @@ export const createChatStore = (id: string) => {
 };
 
 // Create specific store instances
-export const useAgentChatStore = createChatStore("agentChat");
-export const useAssistantChatStore = createChatStore("assistantChat");
+export const useAgentChatStore = createChatStore("agent_chat_store");
+export const useAssistantChatStore = createChatStore("assistant_chat_store");

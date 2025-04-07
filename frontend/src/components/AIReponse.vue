@@ -2,7 +2,9 @@
 import { ref } from "vue";
 import Button from "./Button.vue";
 import Icon from "./Icon.vue";
-import { MessageRole, type Message } from "@/types";
+import { MessageRole, TaskType, type Message } from "@/types";
+
+const regeneratableTasks = [TaskType.FlightSearch, TaskType.HotelSearch, TaskType.TravelSummary];
 
 const emit = defineEmits<{
   (e: "regenerate", messageId: string): void;
@@ -11,9 +13,11 @@ const emit = defineEmits<{
 const props = defineProps<{
   message: Message;
   isChatLoading: boolean;
+  taskType?: TaskType;
 }>();
 
 const isCopied = ref(false);
+const isCollapsableContentVisible = ref(false);
 
 const getIconStyle = () => {
   switch (props.message.role) {
@@ -35,6 +39,10 @@ const getIconStyle = () => {
   }
 };
 
+const toggleCollapsableContent = () => {
+  isCollapsableContentVisible.value = !isCollapsableContentVisible.value;
+};
+
 const handleCopy = () => {
   navigator.clipboard.writeText(props.message.content);
   isCopied.value = true;
@@ -50,19 +58,44 @@ const handleRegenerate = () => {
 
 <template>
   <div class="flex gap-4 w-full text-white">
-    <div class="flex items-center justify-center w-8 h-8 rounded-lg" :class="getIconStyle().color">
+    <div
+      class="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
+      :class="getIconStyle().color"
+    >
       <Icon v-if="props.message.loading" name="spinner-dotted" class="animate-spin" />
       <Icon v-else :name="getIconStyle().icon" />
     </div>
     <div class="flex-1 flex flex-col gap-2">
       <div
-        class="flex flex-col gap-2 text-white task-response"
-        :class="{ 'whitespace-pre-wrap': props.message.role === MessageRole.Assistant }"
+        class="flex flex-col gap-2 w-fit text-white task-response"
         v-html="props.message.content"
       ></div>
+
+      <!-- Collapsable content -->
+      <div v-if="props.message.collapsable_content" class="w-full">
+        <Button
+          variant="ghost"
+          size="sm"
+          @click="toggleCollapsableContent"
+          class="flex items-center gap-2 mb-3"
+        >
+          <Icon :name="isCollapsableContentVisible ? 'angle-up' : 'angle-down'" size="text-sm" />
+          <p>{{ isCollapsableContentVisible ? "Show less details" : "Show more details" }}</p>
+        </Button>
+
+        <div
+          v-if="isCollapsableContentVisible"
+          class="flex flex-col gap-2 w-fit text-gray-200 task-response collapsable-content"
+          v-html="props.message.collapsable_content"
+        ></div>
+      </div>
+
       <div
         v-if="
-          !props.message.loading && !props.isChatLoading && props.message.role !== MessageRole.Info
+          !props.message.loading &&
+          !props.isChatLoading &&
+          props.taskType &&
+          regeneratableTasks.includes(props.taskType)
         "
         class="flex items-center gap-1"
       >
@@ -83,6 +116,10 @@ const handleRegenerate = () => {
 </template>
 
 <style scoped>
+.task-response * {
+  padding-bottom: 6px;
+}
+
 .task-response :deep(strong) {
   font-weight: 600;
 }
@@ -95,5 +132,11 @@ const handleRegenerate = () => {
 .task-response :deep(hr) {
   margin: 1rem 0;
   color: var(--color-gray-500);
+}
+
+.collapsable-content {
+  border-left: 2px solid #2f3245;
+  padding-left: 16px;
+  margin-left: 6px;
 }
 </style>

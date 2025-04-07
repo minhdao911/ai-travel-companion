@@ -11,7 +11,6 @@ export enum MessageRole {
 }
 
 export enum TaskStatus {
-  Idle = "idle",
   Pending = "pending",
   Processing = "processing",
   Completed = "completed",
@@ -19,8 +18,10 @@ export enum TaskStatus {
 }
 
 export enum TaskType {
-  FlightSearch = "Flight Search",
-  HotelSearch = "Hotel Search",
+  FlightSearch = "flight_search",
+  HotelSearch = "hotel_search",
+  TravelSummary = "travel_summary",
+  TravelDetails = "travel_details",
 }
 
 export type Task = {
@@ -28,14 +29,16 @@ export type Task = {
   type: TaskType;
   status: TaskStatus;
   messageId: string;
+  regenerate?: boolean;
 };
 
 export type Message = {
   id: string;
   role: MessageRole;
   content: string;
-  loading?: boolean;
+  collapsable_content?: string;
   taskType?: TaskType;
+  loading?: boolean;
 };
 
 export type TravelPreferences = {
@@ -67,6 +70,8 @@ export type TravelContext = {
   destination_city_name?: string;
   num_guests?: number;
   budget?: number;
-  flights?: string;
+  flight_results?: string;
+  hotel_results?: string;
   preferences?: string;
+  summary?: string;
 };

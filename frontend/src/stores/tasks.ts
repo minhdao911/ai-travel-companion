@@ -1,7 +1,7 @@
 import type { Task, TaskType } from "@/types";
 import { defineStore } from "pinia";
 
-export const useTaskStore = defineStore("tasks", {
+export const useTaskStore = defineStore("task_store", {
   state: () => ({
     tasks: {} as Record<TaskType, Task>,
   }),
@@ -14,6 +14,9 @@ export const useTaskStore = defineStore("tasks", {
     },
     removeTask(type: TaskType) {
       delete this.tasks[type];
+    },
+    resetTasks() {
+      this.tasks = {} as Record<TaskType, Task>;
     },
   },
 });

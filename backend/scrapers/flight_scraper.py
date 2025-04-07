@@ -1,7 +1,7 @@
 from playwright.async_api import async_playwright
-from browser_use import Browser, Agent
+from browser_use import Browser, Agent, BrowserConfig
 from ai.models import model
-from flights.prompts import flight_scrape_from_url_prompt
+from scrapers.prompts import flight_scrape_from_url_prompt
 
 class FlightScraper:
     async def start(self):
@@ -117,6 +117,10 @@ class FlightScraper:
             print("Selecting dates")
             if not await self.select_dates(start_date, end_date):
                 raise Exception("Error selecting dates")
+            
+            # Click on the search button
+            await self.page.locator('button[aria-label="Search"]').click()
+            await self.page.wait_for_timeout(2000)
 
             return self.page.url
 
@@ -126,7 +130,8 @@ class FlightScraper:
 
 async def scrape_flights(url, preferences = None):
     try:
-        browser = Browser()
+        config = BrowserConfig(headless=True)
+        browser = Browser(config)
         agent = Agent(
             task=flight_scrape_from_url_prompt(url, preferences),
             browser=browser,
@@ -141,7 +146,7 @@ async def scrape_flights(url, preferences = None):
         print(f"Error scraping flights: {str(e)}")
         return None        
 
-async def get_flight_url(origin, destination, start_date, end_date, num_guests):
+async def get_flight_search_url(origin, destination, start_date, end_date, num_guests):
     try:
         scraper = FlightScraper()
         await scraper.start()

@@ -21,5 +21,9 @@ export const useTravelStore = defineStore("travel", {
         this.context = { ...this.context, ...context };
       }
     },
+    resetTravel() {
+      this.preferences = null;
+      this.context = null;
+    },
   },
 });
