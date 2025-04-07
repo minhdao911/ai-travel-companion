@@ -110,15 +110,19 @@ const handleInputEnter = async () => {
   agentChatStore.removeMessage(loadingMessageId);
 };
 
+const checkIfTravelPlanComplete = (): boolean => {
+  return !!(travelStore.context?.flight_results && travelStore.context?.hotel_results);
+};
+
 const handleTaskRegenerate = async (messageId: string) => {
   const message = agentChatStore.messages.find((msg) => msg.id === messageId);
   if (message) {
     switch (message.taskType) {
       case TaskType.FlightSearch:
-        await travelSearch.startFlightSearch(true);
+        await travelSearch.startFlightSearch(checkIfTravelPlanComplete());
         break;
       case TaskType.HotelSearch:
-        await travelSearch.startHotelSearch(true);
+        await travelSearch.startHotelSearch(checkIfTravelPlanComplete());
         break;
       case TaskType.TravelSummary:
         await initializeTravelSummary();

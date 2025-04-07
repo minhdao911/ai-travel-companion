@@ -7,6 +7,7 @@ import { useTaskStore } from "@/stores/tasks";
 import { generateId } from "@/utils/id";
 import { formatTaskType } from "@/utils/common";
 import { useTravelSearch } from "@/composables/useTravelSearch";
+import { startTimer, endTimer, PROCESS_NAMES, timeAsync } from "@/utils/performance";
 
 export function useTasks(
   setLoading: (loading: boolean) => void,
@@ -37,7 +38,6 @@ export function useTasks(
   };
 
   const stopPolling = () => {
-    console.log("Stop polling", pollInterval.value);
     if (pollInterval.value !== null) {
       clearInterval(pollInterval.value);
       pollInterval.value = null;
@@ -47,6 +47,11 @@ export function useTasks(
   const setTaskProcessing = (taskType: TaskType, taskId: string) => {
     const taskState = taskStore.tasks[taskType];
     if (taskState) {
+      // If this is the flight search task, record the start time
+      if (taskType === TaskType.FlightSearch && !taskState.regenerate) {
+        startTimer(PROCESS_NAMES.TRAVEL_PLANNING);
+      }
+
       taskStore.updateTask(taskType, {
         id: taskId,
         status: TaskStatus.Processing,
@@ -66,7 +71,10 @@ export function useTasks(
       setLoading(false);
     } else if (status === TaskStatus.Completed) {
       if (taskType === TaskType.FlightSearch) {
+        endTimer(PROCESS_NAMES.FLIGHT_SEARCH);
+
         travelStore.setContext({ flight_results: data });
+
         const output = await marked.parse(data);
         addMessage({
           role: MessageRole.Task,
@@ -81,7 +89,10 @@ export function useTasks(
         }
       }
       if (taskType === TaskType.HotelSearch) {
+        endTimer(PROCESS_NAMES.HOTEL_SEARCH);
+
         travelStore.setContext({ hotel_results: data });
+
         const output = await marked.parse(data);
         addMessage({
           role: MessageRole.Task,
@@ -108,7 +119,13 @@ export function useTasks(
     });
 
     try {
-      const summary = await getTravelSummary(travelStore.context!);
+      // Use the timeAsync utility to time the API call
+      const { result: summary } = await timeAsync(PROCESS_NAMES.TRAVEL_SUMMARY, () =>
+        getTravelSummary(travelStore.context!)
+      );
+
+      endTimer(PROCESS_NAMES.TRAVEL_PLANNING);
+
       const output = await marked.parse(summary);
 
       updateMessage(loadingMessageId, {

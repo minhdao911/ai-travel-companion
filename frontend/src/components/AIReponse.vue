@@ -13,7 +13,6 @@ const emit = defineEmits<{
 const props = defineProps<{
   message: Message;
   isChatLoading: boolean;
-  taskType?: TaskType;
 }>();
 
 const isCopied = ref(false);
@@ -94,8 +93,8 @@ const handleRegenerate = () => {
         v-if="
           !props.message.loading &&
           !props.isChatLoading &&
-          props.taskType &&
-          regeneratableTasks.includes(props.taskType)
+          props.message.taskType &&
+          regeneratableTasks.includes(props.message.taskType)
         "
         class="flex items-center gap-1"
       >

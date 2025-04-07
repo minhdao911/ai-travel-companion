@@ -2,6 +2,8 @@ import { TaskType, MessageRole, type Message } from "@/types";
 import { searchFlights, searchHotels } from "@/services/api";
 import { generateId } from "@/utils/id";
 import { useTravelStore } from "@/stores/travel";
+import { startTimer } from "@/utils/performance";
+import { PROCESS_NAMES } from "@/utils/performance";
 
 export function useTravelSearch(
   addMessage: (message: Omit<Message, "id">) => void,
@@ -32,8 +34,8 @@ export function useTravelSearch(
       );
 
       // Call the flight search API
+      startTimer(PROCESS_NAMES.FLIGHT_SEARCH);
       const response = await searchFlights(preferences);
-      console.log("Flight search response", response);
 
       // Store the task ID and update status
       setTaskProcessing(TaskType.FlightSearch, response.task_id);
@@ -72,8 +74,8 @@ export function useTravelSearch(
       );
 
       // Call the hotel search API
+      startTimer(PROCESS_NAMES.HOTEL_SEARCH);
       const response = await searchHotels(preferences);
-      console.log("Hotel search response", response);
 
       // Store the task ID
       setTaskProcessing(TaskType.HotelSearch, response.task_id);
