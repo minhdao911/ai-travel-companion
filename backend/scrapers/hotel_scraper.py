@@ -24,12 +24,12 @@ class HotelScraper:
             await self.page.wait_for_timeout(1000)
 
             # Select departure date
-            start_date_element = await self.page.wait_for_selector(f"div[role='gridcell'][data-iso='{start_date}']")
+            start_date_element = await self.page.wait_for_selector(f"div[role='gridcell'][data-iso='{start_date}']", timeout=5000)
             await start_date_element.click()
             await self.page.wait_for_timeout(1000)
 
             # Select return date
-            end_date_element = await self.page.wait_for_selector(f"div[role='gridcell'][data-iso='{end_date}']")
+            end_date_element = await self.page.wait_for_selector(f"div[role='gridcell'][data-iso='{end_date}']", timeout=5000)
             await end_date_element.click()
             await self.page.wait_for_timeout(1000)
 
@@ -48,7 +48,7 @@ class HotelScraper:
 
             # Wait for the modal to appear
             count = 1
-            add_button = await self.page.wait_for_selector("button[aria-label*='Add adult']")
+            add_button = await self.page.wait_for_selector("button[aria-label*='Add adult']", timeout=5000)
             while count < num_guests:
                 await add_button.click()
                 count += 1

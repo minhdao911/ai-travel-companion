@@ -1,7 +1,7 @@
 from ai.models import model
-from ai.travel_schemas import travel_preferences_schema
+from travel.travel_schemas import travel_preferences_schema
 from utils.datetime import format_date
-from ai.prompts import travel_preferences_prompt, get_travel_summary_prompt
+from travel.prompts import travel_preferences_prompt, get_travel_summary_prompt
 
 preferences_model = model.with_structured_output(travel_preferences_schema)
 
@@ -15,7 +15,6 @@ def get_travel_preferences(input: str) -> dict:
 
 def get_travel_summary(flights: str, hotels: str, **kwargs) -> str:
     prompt = get_travel_summary_prompt(flights, hotels, **kwargs)
-    print(prompt)
     try:
         return model.invoke(prompt).content
     except Exception as e:

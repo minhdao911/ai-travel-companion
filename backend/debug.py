@@ -4,17 +4,17 @@ import json
 import os
 import sys
 import asyncio
-from typing import List, Dict, Any, Optional
 import datetime
 
 # Add the current directory to the path so we can import the modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import the backend modules
-from ai.travel_details import generate_conversation_response, get_travel_summary
+from travel.travel_details import generate_conversation_response, get_travel_summary
 from scrapers.flight_scraper import get_flight_search_url, scrape_flights
 from scrapers.hotel_scraper import get_hotel_search_url, scrape_hotels
-from tasks import TaskManager, TaskStatus, Task
+from tasks import TaskManager
+from main import MessageItem
 
 # Create a task manager instance
 task_manager = TaskManager()
@@ -289,7 +289,7 @@ class Debug:
                     conversation_history = json.loads(args.conversation_history)
             
             # Add user input to conversation history
-            conversation_history.append({"role": "user", "content": args.user_input})
+            conversation_history.append(MessageItem(role="user", content=args.user_input))
             
             # Generate response
             result = generate_conversation_response(conversation_history)

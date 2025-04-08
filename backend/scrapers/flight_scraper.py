@@ -45,11 +45,13 @@ class FlightScraper:
             await self.page.wait_for_timeout(1000)
 
             # Select departure date
-            await self.page.locator(f"div[role='gridcell'][data-iso='{start_date}']").click()
+            start_date_element = await self.page.wait_for_selector(f"div[role='gridcell'][data-iso='{start_date}']", timeout=5000)
+            await start_date_element.click()
             await self.page.wait_for_timeout(1000)
 
             # Select return date
-            await self.page.locator(f"div[role='gridcell'][data-iso='{end_date}']").click()
+            end_date_element = await self.page.wait_for_selector(f"div[role='gridcell'][data-iso='{end_date}']", timeout=5000)
+            await end_date_element.click()
             await self.page.wait_for_timeout(1000)
 
             # Click on the done button
@@ -67,7 +69,7 @@ class FlightScraper:
 
             # Wait for the modal to appear
             count = 1
-            add_button = await self.page.wait_for_selector("button[aria-label*='Add adult']")
+            add_button = await self.page.wait_for_selector("button[aria-label*='Add adult']", timeout=5000)
             while count < num_guests:
                 await add_button.click()
                 count += 1
@@ -92,7 +94,7 @@ class FlightScraper:
                 await accept_cookies_button.click()
 
             print("Filling origin")
-            origin_input_element = await self.page.wait_for_selector('input[aria-label*="Where from?"]')
+            origin_input_element = await self.page.wait_for_selector('input[aria-label*="Where from?"]', timeout=5000)
             await origin_input_element.click()
             await self.page.wait_for_timeout(500)
 
@@ -105,7 +107,7 @@ class FlightScraper:
                 raise Exception("Error filling and selecting origin")
 
             print("Filling destination")
-            destination_input_element = await self.page.wait_for_selector('input[aria-label*="Where to?"]')
+            destination_input_element = await self.page.wait_for_selector('input[aria-label*="Where to?"]', timeout=5000)
             if not await self.fill_and_select_city(destination_input_element, destination):
                 raise Exception("Error filling and selecting destination")
             

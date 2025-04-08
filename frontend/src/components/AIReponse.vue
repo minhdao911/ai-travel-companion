@@ -116,11 +116,30 @@ const handleRegenerate = () => {
 
 <style scoped>
 .task-response * {
-  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.task-response :deep(h1) {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.task-response :deep(h2) {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.task-response :deep(h3) {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
 }
 
 .task-response :deep(strong) {
   font-weight: 600;
+  line-height: 1.75;
 }
 
 .task-response :deep(ul) {

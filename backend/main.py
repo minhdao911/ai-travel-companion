@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from ai.travel_details import generate_conversation_response, get_travel_summary
+from travel.travel_details import generate_conversation_response, get_travel_summary
 from pydantic import BaseModel
 from typing import List, Optional
 import asyncio
@@ -136,6 +136,7 @@ async def process_travel_summary(request: TravelSummaryRequest):
             request.hotel_results,
             **kwargs
         )   
+        print(result)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
