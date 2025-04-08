@@ -72,38 +72,38 @@ export function useTasks(
     } else if (status === TaskStatus.Completed) {
       if (taskType === TaskType.FlightSearch) {
         endTimer(PROCESS_NAMES.FLIGHT_SEARCH);
-
         travelStore.setContext({ flight_results: data });
 
-        const output = await marked.parse(data);
         addMessage({
           role: MessageRole.Task,
           content: "🛫 I got some flight options for you.",
-          collapsable_content: output,
+          collapsable_content: await marked.parse(data),
           taskType: TaskType.FlightSearch,
         });
 
         if (!taskStore.tasks[TaskType.FlightSearch].regenerate) {
           // Start hotel search
           await startHotelSearch();
+        } else {
+          setLoading(false);
         }
       }
       if (taskType === TaskType.HotelSearch) {
         endTimer(PROCESS_NAMES.HOTEL_SEARCH);
-
         travelStore.setContext({ hotel_results: data });
 
-        const output = await marked.parse(data);
         addMessage({
           role: MessageRole.Task,
           content: "🏨 I got some hotel options for you.",
-          collapsable_content: output,
+          collapsable_content: await marked.parse(data),
           taskType: TaskType.HotelSearch,
         });
 
         if (!taskStore.tasks[TaskType.HotelSearch].regenerate) {
           // Get travel summary
           await initializeTravelSummary();
+        } else {
+          setLoading(false);
         }
       }
     }
@@ -121,21 +121,21 @@ export function useTasks(
     try {
       // Use the timeAsync utility to time the API call
       const { result: summary } = await timeAsync(PROCESS_NAMES.TRAVEL_SUMMARY, () =>
-        getTravelSummary(travelStore.context!)
+        getTravelSummary(travelStore.context!, travelStore.preferences!)
       );
 
       endTimer(PROCESS_NAMES.TRAVEL_PLANNING);
-
-      const output = await marked.parse(summary);
+      travelStore.setContext({ summary });
 
       updateMessage(loadingMessageId, {
         loading: false,
       });
       addMessage({
         role: MessageRole.Assistant,
-        content: output,
+        content: await marked.parse(summary),
         taskType: TaskType.TravelSummary,
       });
+      setLoading(false);
     } catch (e) {
       console.error("Error getting travel summary:", e);
       updateMessage(loadingMessageId, {
@@ -146,9 +146,8 @@ export function useTasks(
         content: "Failed to get travel summary. Please try again.",
         taskType: TaskType.TravelSummary,
       });
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const monitorTaskStatus = async (taskType: TaskType) => {

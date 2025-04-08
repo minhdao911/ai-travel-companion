@@ -16,33 +16,35 @@ export const getTravelDetails = async (
 };
 
 // Function to get travel summary
-export const getTravelSummary = async (context: TravelContext) => {
+export const getTravelSummary = async (context: TravelContext, preferences: TravelPreferences) => {
   const response = await axios.post(`${API_URL}/api/travel-summary`, {
     ...context,
-    budget: context.budget || undefined,
+    preferences,
   });
   return response.data;
 };
 
 // Function to search for flights
-export const searchFlights = async (preferences: TravelPreferences) => {
+export const searchFlights = async (context: TravelContext, preferences: TravelPreferences) => {
   const response = await axios.post(`${API_URL}/api/search-flights`, {
-    origin_city_name: preferences.origin_city_name,
-    destination_city_name: preferences.destination_city_name,
-    start_date: preferences.start_date,
-    end_date: preferences.end_date,
-    num_guests: preferences.num_guests,
+    origin_city_name: context.origin_city_name,
+    destination_city_name: context.destination_city_name,
+    start_date: context.start_date,
+    end_date: context.end_date,
+    num_guests: context.num_guests,
+    preferences,
   });
   return response.data;
 };
 
 // Function to search for hotels
-export const searchHotels = async (preferences: TravelPreferences) => {
+export const searchHotels = async (context: TravelContext, preferences: TravelPreferences) => {
   const response = await axios.post(`${API_URL}/api/search-hotels`, {
-    destination_city_name: preferences.destination_city_name,
-    start_date: preferences.start_date,
-    end_date: preferences.end_date,
-    num_guests: preferences.num_guests,
+    destination_city_name: context.destination_city_name,
+    start_date: context.start_date,
+    end_date: context.end_date,
+    num_guests: context.num_guests,
+    preferences,
   });
   return response.data;
 };

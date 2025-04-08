@@ -4,6 +4,7 @@ import { generateId } from "@/utils/id";
 import { useTravelStore } from "@/stores/travel";
 import { startTimer } from "@/utils/performance";
 import { PROCESS_NAMES } from "@/utils/performance";
+import { useAgentChatStore } from "@/stores/chat";
 
 export function useTravelSearch(
   addMessage: (message: Omit<Message, "id">) => void,
@@ -11,6 +12,7 @@ export function useTravelSearch(
   initializeTask: (taskType: TaskType, message: Message, regenerate?: boolean) => string
 ) {
   const travelStore = useTravelStore();
+  const agentChatStore = useAgentChatStore();
 
   // Start flight search
   const startFlightSearch = async (regenerate?: boolean) => {
@@ -35,7 +37,7 @@ export function useTravelSearch(
 
       // Call the flight search API
       startTimer(PROCESS_NAMES.FLIGHT_SEARCH);
-      const response = await searchFlights(preferences);
+      const response = await searchFlights(travelStore.context!, preferences);
 
       // Store the task ID and update status
       setTaskProcessing(TaskType.FlightSearch, response.task_id);
@@ -48,6 +50,7 @@ export function useTravelSearch(
         role: MessageRole.Task,
         taskType: TaskType.FlightSearch,
       });
+      agentChatStore.setLoading(false);
       return null;
     }
   };
@@ -75,7 +78,7 @@ export function useTravelSearch(
 
       // Call the hotel search API
       startTimer(PROCESS_NAMES.HOTEL_SEARCH);
-      const response = await searchHotels(preferences);
+      const response = await searchHotels(travelStore.context!, preferences);
 
       // Store the task ID
       setTaskProcessing(TaskType.HotelSearch, response.task_id);
@@ -88,6 +91,7 @@ export function useTravelSearch(
         role: MessageRole.Task,
         taskType: TaskType.HotelSearch,
       });
+      agentChatStore.setLoading(false);
       return null;
     }
   };

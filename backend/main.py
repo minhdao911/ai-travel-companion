@@ -8,6 +8,7 @@ from scrapers.flight_scraper import get_flight_search_url, scrape_flights
 from scrapers.hotel_scraper import get_hotel_search_url, scrape_hotels
 from tasks import TaskManager, TaskStatus
 import threading
+from utils.format import format_nested_dict_for_prompt
 
 app = FastAPI(title="AI Travel Companion API")
 
@@ -35,13 +36,12 @@ class BaseSearchRequest(BaseModel):
     start_date: str
     end_date: str
     num_guests: int
-    budget: Optional[int] = None
-    preferences: Optional[str] = None
+    preferences: Optional[dict] = None
 
 class FlightSearchRequest(BaseSearchRequest):
     origin_city_name: str
 
-class TravelSummaryRequest(BaseSearchRequest):
+class TravelSummaryRequest(FlightSearchRequest):
     flight_results: str
     hotel_results: str
 
@@ -54,7 +54,7 @@ def run_async(coro):
     finally:
         loop.close()
 
-def process_flights_search(task_id, origin, destination, start_date, end_date, num_guests):
+def process_flights_search(task_id, origin, destination, start_date, end_date, num_guests, preferences):
     try:
         # Update task status to processing
         task_manager.update_task_status(task_id, TaskStatus.PROCESSING)
@@ -65,7 +65,7 @@ def process_flights_search(task_id, origin, destination, start_date, end_date, n
             raise Exception("Failed to get flight search url")
                 
         # Scrape flights
-        flight_results = run_async(scrape_flights(url))
+        flight_results = run_async(scrape_flights(url, preferences))
         print("--- Flight results ---")
         print(flight_results)
         if not flight_results:
@@ -77,7 +77,7 @@ def process_flights_search(task_id, origin, destination, start_date, end_date, n
         print(f"Error processing flights search: {str(e)}")
         task_manager.update_task_status(task_id, TaskStatus.FAILED, error=str(e))
 
-def process_hotels_search(task_id, destination, start_date, end_date, num_guests):
+def process_hotels_search(task_id, destination, start_date, end_date, num_guests, preferences):
     try:
         # Update task status to processing
         task_manager.update_task_status(task_id, TaskStatus.PROCESSING)
@@ -88,7 +88,7 @@ def process_hotels_search(task_id, destination, start_date, end_date, num_guests
             raise Exception("Failed to get hotel search url")
         
         # Scrape hotels
-        hotel_results = run_async(scrape_hotels(url))
+        hotel_results = run_async(scrape_hotels(url, preferences))
         print("--- Hotel results ---")
         print(hotel_results)
         if not hotel_results:
@@ -123,14 +123,8 @@ async def process_travel_summary(request: TravelSummaryRequest):
             "start_date": request.start_date,
             "end_date": request.end_date,
             "num_guests": request.num_guests,
-        }
-
-        if hasattr(request, 'budget') and request.budget is not None:
-            kwargs['budget'] = request.budget
-
-        if hasattr(request, 'preferences') and request.preferences is not None:
-            kwargs['preferences'] = request.preferences
-            
+            "preferences": format_nested_dict_for_prompt(request.preferences)
+        }     
         result = get_travel_summary(
             request.flight_results,
             request.hotel_results,
@@ -166,6 +160,7 @@ def search_flights(request: FlightSearchRequest):
         start_date = request.start_date
         end_date = request.end_date
         num_guests = request.num_guests
+        preferences = format_nested_dict_for_prompt(request.preferences)
 
         if not all([origin_city_name, destination_city_name, start_date, end_date, num_guests]):
             task_manager.update_task_status(task_id, TaskStatus.FAILED, error="Missing required flight details")
@@ -174,7 +169,7 @@ def search_flights(request: FlightSearchRequest):
         # Start background thread
         thread = threading.Thread(
             target=process_flights_search, 
-            args=(task_id, origin_city_name, destination_city_name, start_date, end_date, num_guests), 
+            args=(task_id, origin_city_name, destination_city_name, start_date, end_date, num_guests, preferences), 
             daemon=True
         )
         thread.start()
@@ -195,6 +190,7 @@ def search_hotels(request: BaseSearchRequest):
         start_date = request.start_date
         end_date = request.end_date
         num_guests = request.num_guests
+        preferences = format_nested_dict_for_prompt(request.preferences)
 
         if not all([destination_city_name, start_date, end_date, num_guests]):
             task_manager.update_task_status(task_id, TaskStatus.FAILED, error="Missing required hotel details")
@@ -203,7 +199,7 @@ def search_hotels(request: BaseSearchRequest):
         # Start background thread
         thread = threading.Thread(
             target=process_hotels_search, 
-            args=(task_id, destination_city_name, start_date, end_date, num_guests), 
+            args=(task_id, destination_city_name, start_date, end_date, num_guests, preferences), 
             daemon=True
         )
         thread.start()

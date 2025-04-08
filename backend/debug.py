@@ -31,7 +31,6 @@ class Debug:
                 'help': 'Generate travel conversation response',
                 'args': [
                     {'name': 'user_input', 'type': str, 'required': True, 'help': 'User input message'},
-                    {'name': 'conversation_history', 'type': str, 'required': False, 'help': 'JSON string or file path of conversation history'}
                 ]
             },
             'search-flights': {
@@ -96,7 +95,6 @@ class Debug:
         # Travel details command
         travel_details_parser = subparsers.add_parser('travel-details', help='Generate travel conversation response')
         travel_details_parser.add_argument('--user-input', type=str, required=True, help='User input message')
-        travel_details_parser.add_argument('--conversation-history', type=str, help='JSON string of conversation history')
         
         # Search flights command
         flights_parser = subparsers.add_parser('search-flights', help='Search for flights')
@@ -278,24 +276,52 @@ class Debug:
     
     async def _travel_details(self, args):
         try:
-            # Parse conversation history
             conversation_history = []
-            if hasattr(args, 'conversation_history') and args.conversation_history:
-                # Check if it's a file path or a JSON string
-                if os.path.exists(args.conversation_history):
-                    with open(args.conversation_history, 'r') as f:
-                        conversation_history = json.load(f)
-                else:
-                    conversation_history = json.loads(args.conversation_history)
+
+            # --- Start Interactive Conversation Loop ---
+            current_user_input = args.user_input
+            print(f"\nStarting conversation...")
+            print(f"You: {current_user_input}") # Echo user input
+
+            while True:
+                # Add user message to history
+                conversation_history.append(MessageItem(role="user", content=current_user_input))
+
+                # Generate response
+                print("AI is thinking...")
+                # Assuming generate_conversation_response takes List[MessageItem] and returns a dict/object
+                # with 'content' and 'complete' attributes/keys.
+                # Ensure generate_conversation_response is awaitable if called with await
+                response_data = generate_conversation_response(conversation_history)
+
+                # Extract message and completion status
+                ai_message = response_data.message
+                is_complete = response_data.complete
             
-            # Add user input to conversation history
-            conversation_history.append(MessageItem(role="user", content=args.user_input))
-            
-            # Generate response
-            result = generate_conversation_response(conversation_history)
-            print(json.dumps(result, indent=2))
+                # Print AI response
+                print(f"AI: {ai_message}")
+                
+                # Add AI response to history
+                conversation_history.append(MessageItem(role="assistant", content=ai_message))
+
+                # Check if conversation is complete
+                if is_complete:
+                    print("\nConversation complete.")
+                    print(f"Travel preferences: {response_data.travel_preferences}")
+                    break
+
+                # Prompt for next user input
+                next_input = input("You: ").strip()
+                if not next_input:
+                    print("\nEmpty input received. Ending conversation.")
+                    break
+                current_user_input = next_input
+            # --- End Interactive Conversation Loop ---
+
+            print("\nExiting travel details conversation.")
+
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print(f"Error during conversation processing: {str(e)}")
     
     async def _search_flights(self, args):
         try:

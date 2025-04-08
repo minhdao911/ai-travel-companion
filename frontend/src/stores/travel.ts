@@ -8,15 +8,42 @@ export const useTravelStore = defineStore("travel", {
   }),
   actions: {
     setPreferences(preferences: Partial<TravelPreferences> | null) {
-      if (!this.preferences) {
-        this.preferences = preferences;
+      console.log("preferences", preferences);
+      if (preferences) {
+        this.preferences = {
+          activities: preferences.activities || [],
+          accommodation: {
+            type: preferences.accommodation?.type || "",
+            max_price_per_night: preferences.accommodation?.max_price_per_night || 0,
+            amenities: preferences.accommodation?.amenities || [],
+          },
+          budget: preferences.budget || 0,
+          flight: {
+            class: preferences.flight?.class || "",
+            direct: preferences.flight?.direct || false,
+          },
+          food_preferences: preferences.food_preferences || [],
+          origin_airport_code: preferences.origin_airport_code || "",
+          destination_airport_code: preferences.destination_airport_code || "",
+        };
       } else {
-        this.preferences = { ...this.preferences, ...preferences };
+        this.preferences = null;
       }
     },
     setContext(context: Partial<TravelContext> | null) {
       if (!this.context) {
-        this.context = context;
+        if (context) {
+          this.context = {
+            start_date: context.start_date || "",
+            end_date: context.end_date || "",
+            origin_city_name: context.origin_city_name || "",
+            destination_city_name: context.destination_city_name || "",
+            num_guests: context.num_guests || 1,
+            ...context,
+          };
+        } else {
+          this.context = null;
+        }
       } else {
         this.context = { ...this.context, ...context };
       }

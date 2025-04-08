@@ -30,9 +30,8 @@ def get_travel_summary_prompt(flights: str, hotels: str, **kwargs) -> str:
     # Extract relevant preferences for clarity in the prompt
     start_date = kwargs.get('start_date', 'unknown start date')
     end_date = kwargs.get('end_date', 'unknown end date')
-    user_preferences_str = ", ".join(f"{k}: {v}" for k, v in kwargs.items() if k not in ['start_date', 'end_date'])
-    if not user_preferences_str:
-        user_preferences_str = "No specific preferences provided."
+    num_guests = kwargs.get('num_guests', 'unknown number of guests')
+    preferences = kwargs.get('preferences', "not specified")
 
     return f"""Summarize the provided flight and hotel options. Calculate the total estimated travel cost, including flights and the total hotel cost for the duration of the stay. Finally, provide a recommendation for one flight combination (outbound and return) and one hotel, along with a justification.
 
@@ -40,7 +39,8 @@ def get_travel_summary_prompt(flights: str, hotels: str, **kwargs) -> str:
         - Flights Details: {flights}
         - Hotels Details: {hotels} (Note: Hotel prices listed are typically per night)
         - Travel Dates: From {start_date} to {end_date}
-        - User Preferences: {user_preferences_str} 
+        - Number of Guests: {num_guests}
+        - User Preferences: {preferences} 
         
         Instructions:
         1.  Calculate Total Duration: Determine the number of nights for the hotel stay based on the start and end dates.
@@ -50,7 +50,7 @@ def get_travel_summary_prompt(flights: str, hotels: str, **kwargs) -> str:
             - Sum the flight and hotel costs for the grand total.
         3.  Make Recommendations:
             - Select ONE outbound and ONE return flight combination AND ONE hotel.
-            - If user preferences are provided: Base the recommendation strictly on matching those preferences ({user_preferences_str}). Consider factors like budget, airline choice, flight times, hotel rating, amenities, location preferences, etc., if mentioned.
+            - If user preferences are provided: Base the recommendation strictly on matching those preferences ({preferences}). Consider factors like budget, airline choice, flight times, hotel rating, amenities, location preferences, etc., if mentioned.
             - If no specific preferences are provided:
                 - Recommend the flight combination that offers a good balance between the lowest price and shortest travel time (including layovers).
                 - Recommend the hotel that offers the best combination of high guest ratings, lowest price, and a generally desirable location (e.g., close to city center, attractions, or transport links).
@@ -59,7 +59,7 @@ def get_travel_summary_prompt(flights: str, hotels: str, **kwargs) -> str:
         Output Structure:
         ## Flight and Hotel Recommendation:
         
-        **Travel Summary:** [Origin City/Airport] to [Destination City/Airport]
+        **Travel Summary:** [Origin City/Airport] to [Destination City/Airport] for [Number of Guests]
         **Dates:** {start_date} to {end_date} ([Calculated number] nights)
 
         ### Recommended Flight:

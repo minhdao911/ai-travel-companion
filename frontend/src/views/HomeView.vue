@@ -44,14 +44,20 @@ const processUserInput = async (userInput: string) => {
 
     // Store travel details if available
     if (responseData.complete && responseData.travel_preferences) {
-      travelStore.setPreferences(responseData.travel_preferences);
+      travelStore.setPreferences({
+        origin_airport_code: responseData.travel_preferences.origin_airport_code,
+        destination_airport_code: responseData.travel_preferences.destination_airport_code,
+        accommodation: responseData.travel_preferences.accommodation,
+        flight: responseData.travel_preferences.flight,
+        activities: responseData.travel_preferences.activities,
+        food_preferences: responseData.travel_preferences.food_preferences,
+      });
       travelStore.setContext({
         start_date: responseData.travel_preferences.start_date,
         end_date: responseData.travel_preferences.end_date,
         origin_city_name: responseData.travel_preferences.origin_city_name,
         destination_city_name: responseData.travel_preferences.destination_city_name,
         num_guests: responseData.travel_preferences.num_guests,
-        budget: responseData.travel_preferences.budget,
       });
 
       agentChatStore.addMessage({
@@ -69,7 +75,7 @@ const processUserInput = async (userInput: string) => {
     // Add the assistant's message with the formatted response
     agentChatStore.addMessage({
       role: MessageRole.Assistant,
-      content: responseData.message,
+      content: await marked.parse(responseData.message),
     });
     agentChatStore.setLoading(false);
   } catch (error) {
@@ -117,6 +123,7 @@ const checkIfTravelPlanComplete = (): boolean => {
 const handleTaskRegenerate = async (messageId: string) => {
   const message = agentChatStore.messages.find((msg) => msg.id === messageId);
   if (message) {
+    agentChatStore.setLoading(true);
     switch (message.taskType) {
       case TaskType.FlightSearch:
         await travelSearch.startFlightSearch(checkIfTravelPlanComplete());
@@ -128,6 +135,7 @@ const handleTaskRegenerate = async (messageId: string) => {
         await initializeTravelSummary();
         break;
       default:
+        agentChatStore.setLoading(false);
         break;
     }
   }
