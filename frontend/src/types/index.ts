@@ -42,8 +42,6 @@ export type Message = {
 };
 
 export type TravelPreferences = {
-  origin_airport_code?: string;
-  destination_airport_code?: string;
   budget?: number;
   accommodation?: {
     type?: string;
@@ -63,6 +61,8 @@ export type TravelContext = {
   end_date: string;
   origin_city_name: string;
   destination_city_name: string;
+  origin_airport_code: string;
+  destination_airport_code: string;
   num_guests: number;
   flight_results?: string;
   hotel_results?: string;

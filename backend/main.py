@@ -9,6 +9,7 @@ from scrapers.hotel_scraper import get_hotel_search_url, scrape_hotels
 from tasks import TaskManager, TaskStatus
 import threading
 from utils.format import format_nested_dict_for_prompt
+from scrapers.flight_scraper_v2 import FlightScraperV2, to_markdown
 
 app = FastAPI(title="AI Travel Companion API")
 
@@ -32,14 +33,16 @@ class TravelInputRequest(BaseModel):
     conversation_history: Optional[List[MessageItem]] = []
 
 class BaseSearchRequest(BaseModel):
-    destination_city_name: str
+    destination_city_name: str | None = None
+    destination_airport_code: str | None = None
     start_date: str
     end_date: str
     num_guests: int
     preferences: Optional[dict] = None
 
 class FlightSearchRequest(BaseSearchRequest):
-    origin_city_name: str
+    origin_city_name: str | None = None
+    origin_airport_code: str | None = None
 
 class TravelSummaryRequest(FlightSearchRequest):
     flight_results: str
@@ -70,6 +73,37 @@ def process_flights_search(task_id, origin, destination, start_date, end_date, n
         print(flight_results)
         if not flight_results:
             raise Exception("Failed to scrape flights")
+        
+        # Update task status to completed
+        task_manager.update_task_status(task_id, TaskStatus.COMPLETED, data=flight_results)
+    except Exception as e:
+        print(f"Error processing flights search: {str(e)}")
+        task_manager.update_task_status(task_id, TaskStatus.FAILED, error=str(e))
+
+def process_flights_search_v2(task_id, origin, destination, start_date, end_date, num_guests, preferences):
+    try:
+        # Update task status to processing
+        task_manager.update_task_status(task_id, TaskStatus.PROCESSING)
+
+        # Get flight search url
+        scraper = FlightScraperV2(
+            origin_airport_code=origin,
+            destination_airport_code=destination,
+            num_guests=num_guests,
+            preferences=preferences
+        )
+        outbound = run_async(scraper.get_flight_details(start_date))
+        if not outbound:
+            raise Exception("Failed to get outbound flight details")
+        
+        inbound = run_async(scraper.get_flight_details(end_date))
+        if not inbound:
+            raise Exception("Failed to get inbound flight details")
+        
+        flight_results = f"### Outbound:\n\n"
+        flight_results += to_markdown(outbound)
+        flight_results += "\n\n### Return:\n\n"
+        flight_results += to_markdown(inbound)
         
         # Update task status to completed
         task_manager.update_task_status(task_id, TaskStatus.COMPLETED, data=flight_results)
@@ -179,6 +213,40 @@ def search_flights(request: FlightSearchRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+@app.post("/api/v2/search-flights")
+def search_flights_v2(request: FlightSearchRequest):
+    try:
+        # Store the task in the task manager
+        task_id = task_manager.add_task()
+
+        # Extract flight details from the request
+        origin_airport_code = request.origin_airport_code
+        destination_airport_code = request.destination_airport_code
+        start_date = request.start_date
+        end_date = request.end_date
+        num_guests = request.num_guests
+        preferences = {
+            "seat_class": request.preferences.get("class", "economy"),
+            "direct": request.preferences.get("direct", False)
+        }
+
+        if not all([origin_airport_code, destination_airport_code, start_date, end_date, num_guests]):
+            task_manager.update_task_status(task_id, TaskStatus.FAILED, error="Missing required flight details")
+            raise HTTPException(status_code=400, detail="Missing required flight details")
+
+        # Start background thread
+        thread = threading.Thread(
+            target=process_flights_search_v2, 
+            args=(task_id, origin_airport_code, destination_airport_code, start_date, end_date, num_guests, preferences), 
+            daemon=True
+        )
+        thread.start()
+
+        return {"task_id": task_id, "status": TaskStatus.PENDING}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/search-hotels")
 def search_hotels(request: BaseSearchRequest):
     try:

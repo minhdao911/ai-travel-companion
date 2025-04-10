@@ -8,7 +8,6 @@ export const useTravelStore = defineStore("travel", {
   }),
   actions: {
     setPreferences(preferences: Partial<TravelPreferences> | null) {
-      console.log("preferences", preferences);
       if (preferences) {
         this.preferences = {
           activities: preferences.activities || [],
@@ -23,8 +22,6 @@ export const useTravelStore = defineStore("travel", {
             direct: preferences.flight?.direct || false,
           },
           food_preferences: preferences.food_preferences || [],
-          origin_airport_code: preferences.origin_airport_code || "",
-          destination_airport_code: preferences.destination_airport_code || "",
         };
       } else {
         this.preferences = null;
@@ -38,6 +35,8 @@ export const useTravelStore = defineStore("travel", {
             end_date: context.end_date || "",
             origin_city_name: context.origin_city_name || "",
             destination_city_name: context.destination_city_name || "",
+            origin_airport_code: context.origin_airport_code || "",
+            destination_airport_code: context.destination_airport_code || "",
             num_guests: context.num_guests || 1,
             ...context,
           };

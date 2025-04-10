@@ -32,7 +32,19 @@ export const searchFlights = async (context: TravelContext, preferences: TravelP
     start_date: context.start_date,
     end_date: context.end_date,
     num_guests: context.num_guests,
-    preferences,
+    preferences: preferences.flight,
+  });
+  return response.data;
+};
+
+export const searchFlightsV2 = async (context: TravelContext, preferences: TravelPreferences) => {
+  const response = await axios.post(`${API_URL}/api/v2/search-flights`, {
+    origin_airport_code: context.origin_airport_code,
+    destination_airport_code: context.destination_airport_code,
+    start_date: context.start_date,
+    end_date: context.end_date,
+    num_guests: context.num_guests,
+    preferences: preferences.flight,
   });
   return response.data;
 };
@@ -44,7 +56,7 @@ export const searchHotels = async (context: TravelContext, preferences: TravelPr
     start_date: context.start_date,
     end_date: context.end_date,
     num_guests: context.num_guests,
-    preferences,
+    preferences: preferences.accommodation,
   });
   return response.data;
 };

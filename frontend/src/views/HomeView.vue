@@ -45,8 +45,6 @@ const processUserInput = async (userInput: string) => {
     // Store travel details if available
     if (responseData.complete && responseData.travel_preferences) {
       travelStore.setPreferences({
-        origin_airport_code: responseData.travel_preferences.origin_airport_code,
-        destination_airport_code: responseData.travel_preferences.destination_airport_code,
         accommodation: responseData.travel_preferences.accommodation,
         flight: responseData.travel_preferences.flight,
         activities: responseData.travel_preferences.activities,
@@ -57,6 +55,8 @@ const processUserInput = async (userInput: string) => {
         end_date: responseData.travel_preferences.end_date,
         origin_city_name: responseData.travel_preferences.origin_city_name,
         destination_city_name: responseData.travel_preferences.destination_city_name,
+        origin_airport_code: responseData.travel_preferences.origin_airport_code,
+        destination_airport_code: responseData.travel_preferences.destination_airport_code,
         num_guests: responseData.travel_preferences.num_guests,
       });
 

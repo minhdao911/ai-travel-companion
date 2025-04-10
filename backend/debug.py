@@ -15,6 +15,7 @@ from scrapers.flight_scraper import get_flight_search_url, scrape_flights
 from scrapers.hotel_scraper import get_hotel_search_url, scrape_hotels
 from tasks import TaskManager
 from main import MessageItem
+from scrapers.flight_scraper_v2 import FlightScraperV2, to_json, to_markdown
 
 # Create a task manager instance
 task_manager = TaskManager()
@@ -327,35 +328,55 @@ class Debug:
         try:
             print(f"Searching for flights from {args.origin} to {args.destination}...")
             
+            # --- v1 ---
             # Get flight search URL
-            url = await get_flight_search_url(
-                args.origin, 
-                args.destination, 
-                args.start_date, 
-                args.end_date, 
+            # url = await get_flight_search_url(
+            #     args.origin, 
+            #     args.destination, 
+            #     args.start_date, 
+            #     args.end_date, 
+            #     args.num_guests
+            # )
+            
+            # if not url:
+            #     print("Error: Failed to get flight search URL")
+            #     return
+                
+            # print(f"Flight search URL: {url}")
+            
+            # # Scrape flights
+            # print("Scraping flights...")
+            # flight_results = await scrape_flights(url)
+            
+            # if not flight_results:
+            #     print("Error: Failed to scrape flights")
+            #     return
+
+            # --- v2 ---
+            scraper = FlightScraperV2(
+                args.origin,
+                args.destination,
                 args.num_guests
             )
-            
-            if not url:
-                print("Error: Failed to get flight search URL")
-                return
-                
-            print(f"Flight search URL: {url}")
-            
-            # Scrape flights
-            print("Scraping flights...")
-            flight_results = await scrape_flights(url)
-            
-            if not flight_results:
-                print("Error: Failed to scrape flights")
-                return
-            
+            outbound_flights = await scraper.get_flight_details(args.start_date)
+            outbound_flights_json = to_json(outbound_flights)
+            outbound_flights_str = to_markdown(outbound_flights)
+
+            return_flights = await scraper.get_flight_details(args.end_date)
+            return_flights_json = to_json(return_flights)
+            return_flights_str = to_markdown(return_flights)
+
             # Print results
-            print("\nFlight Results:")
-            print(json.dumps(flight_results, indent=2))
-            
-            # Save results to file
-            self._save_results_to_file('flight_results', flight_results)
+            print("Outbound Flights:\n")
+            print(outbound_flights_str)
+            print("Return Flights:\n")
+            print(return_flights_str)
+
+            # Save results to file (pass the dict version)
+            self._save_results_to_file('flight_results', {
+                'outbound': outbound_flights_json,
+                'return': return_flights_json
+            })
             
         except Exception as e:
             print(f"Error: {str(e)}")
@@ -386,7 +407,7 @@ class Debug:
                 print("Error: Failed to scrape hotels")
                 return
             
-            # Print results
+            # Print results (assuming hotel_results is already JSON serializable)
             print("\nHotel Results:")
             print(json.dumps(hotel_results, indent=2))
             
@@ -493,9 +514,18 @@ class Debug:
         # Save results to file in dumps directory
         filename = f"{filename}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         filepath = os.path.join(dumps_dir, filename)
-        with open(filepath, 'w') as f:
-            json.dump(results, f, indent=2)
-        print(f"\nResults saved to {filepath}")
+        # Ensure results are JSON serializable before dumping
+        try:
+            with open(filepath, 'w') as f:
+                json.dump(results, f, indent=2)
+            print(f"\nResults saved to {filepath}")
+        except TypeError as e:
+            print(f"\nError saving results to {filepath}: {e}")
+            print("Attempting to save raw data...")
+            # Fallback: try saving the raw representation if JSON fails
+            with open(filepath.replace('.txt', '_raw.txt'), 'w') as f:
+                f.write(str(results))
+            print(f"Raw results saved to {filepath.replace('.txt', '_raw.txt')}")
             
 
 if __name__ == '__main__':
