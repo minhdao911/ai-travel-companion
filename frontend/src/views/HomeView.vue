@@ -44,20 +44,28 @@ const processUserInput = async (userInput: string) => {
 
     // Store travel details if available
     if (responseData.complete && responseData.travel_preferences) {
+      const { flight, accommodation, ...rest } = responseData.travel_preferences;
       travelStore.setPreferences({
-        accommodation: responseData.travel_preferences.accommodation,
-        flight: responseData.travel_preferences.flight,
-        activities: responseData.travel_preferences.activities,
-        food_preferences: responseData.travel_preferences.food_preferences,
+        accommodation: {
+          types: accommodation?.types?.length === 0 ? ["hotel"] : accommodation?.types,
+          max_price_per_night: accommodation?.max_price_per_night,
+          amenities: accommodation?.amenities,
+        },
+        flight: {
+          class: flight?.class === "not specified" ? "economy" : flight?.class,
+          direct: flight?.direct,
+        },
+        activities: rest.activities,
+        food_preferences: rest.food_preferences,
       });
       travelStore.setContext({
-        start_date: responseData.travel_preferences.start_date,
-        end_date: responseData.travel_preferences.end_date,
-        origin_city_name: responseData.travel_preferences.origin_city_name,
-        destination_city_name: responseData.travel_preferences.destination_city_name,
-        origin_airport_code: responseData.travel_preferences.origin_airport_code,
-        destination_airport_code: responseData.travel_preferences.destination_airport_code,
-        num_guests: responseData.travel_preferences.num_guests,
+        start_date: rest.start_date,
+        end_date: rest.end_date,
+        origin_city_name: rest.origin_city_name,
+        destination_city_name: rest.destination_city_name,
+        origin_airport_code: rest.origin_airport_code,
+        destination_airport_code: rest.destination_airport_code,
+        num_guests: rest.num_guests,
       });
 
       agentChatStore.addMessage({
@@ -159,7 +167,11 @@ const handleTaskRegenerate = async (messageId: string) => {
         />
       </div>
       <TextInput
-        placeholder="Where would you like to go?"
+        :placeholder="
+          travelStore.context
+            ? 'Ask anything about your travel plan'
+            : 'Where would you like to go?'
+        "
         :activeTab="Tabs.FlightsAndHotels"
         v-model="input"
         :onEnter="handleInputEnter"

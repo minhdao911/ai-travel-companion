@@ -61,6 +61,18 @@ export const searchHotels = async (context: TravelContext, preferences: TravelPr
   return response.data;
 };
 
+export const searchHotelsV2 = async (context: TravelContext, preferences: TravelPreferences) => {
+  const response = await axios.post(`${API_URL}/api/v2/search-hotels`, {
+    destination_city_name: context.destination_city_name,
+    start_date: context.start_date,
+    end_date: context.end_date,
+    num_guests: context.num_guests,
+    currency: context.currency,
+    preferences: preferences.accommodation,
+  });
+  return response.data;
+};
+
 // Function to check task status
 export const checkTaskStatus = async (taskId: string) => {
   const response = await axios.get(`${API_URL}/api/task-status/${taskId}`);

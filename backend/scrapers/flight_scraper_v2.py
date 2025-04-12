@@ -9,20 +9,22 @@ from datetime import datetime
 import hashlib
 from utils.datetime import format_date
 
-# --- Pydantic Models ---
 
 class FlightPrice(BaseModel):
     amount: int
     currency: str
+
 
 class FlightStopLocation(BaseModel):
     city: str
     airport: str
     duration: str
 
+
 class FlightPreferences(BaseModel):
     seat_class: str
     direct: bool
+
 
 class FlightData(BaseModel):
     id: str | None = None
@@ -39,7 +41,6 @@ class FlightData(BaseModel):
     stop_locations: List[FlightStopLocation] = []
     preferences: FlightPreferences | None = None
 
-# --- Helper Functions ---
 
 def _parse_duration_to_minutes(duration_str: str | None) -> int | None:
     """Converts duration string (e.g., '10 hr 30 min', '5 hr', '45 min') to total minutes."""
@@ -49,19 +50,20 @@ def _parse_duration_to_minutes(duration_str: str | None) -> int | None:
     hours = 0
     minutes = 0
 
-    hour_match = re.search(r'(\d+)\s*hr', duration_str)
+    hour_match = re.search(r"(\d+)\s*hr", duration_str)
     if hour_match:
         hours = int(hour_match.group(1))
 
-    min_match = re.search(r'(\d+)\s*min', duration_str)
+    min_match = re.search(r"(\d+)\s*min", duration_str)
     if min_match:
         minutes = int(min_match.group(1))
 
     if hours > 0 or minutes > 0:
-      total_minutes = hours * 60 + minutes
-      return total_minutes
+        total_minutes = hours * 60 + minutes
+        return total_minutes
     else:
-      return None
+        return None
+
 
 def _parse_date(date_str, year):
     """Parses date strings like 'Thursday, May 1' into 'YYYY-MM-DD'."""
@@ -76,6 +78,7 @@ def _parse_date(date_str, year):
     except ValueError:
         return "Invalid Date Format"
 
+
 def _currency_to_currency_code(currency: str) -> str:
     # Note: This assumes the scraped currency string ends with 's' (e.g., "euros", "dollars")
     currency_map = {
@@ -83,16 +86,23 @@ def _currency_to_currency_code(currency: str) -> str:
         "dollar": "USD",
         "pound": "GBP",
     }
-    return currency_map.get(currency.lower(), "UNK") # Return UNK for unknown
+    return currency_map.get(currency.lower(), "UNK")  # Return UNK for unknown
+
 
 def _cheapest_flight_key(flight: FlightData):
-    price = flight.price.amount if flight.price and flight.price.amount is not None else float('inf')
+    price = (
+        flight.price.amount
+        if flight.price and flight.price.amount is not None
+        else float("inf")
+    )
     return price
+
 
 def _shortest_flight_key(flight: FlightData):
     duration_minutes = _parse_duration_to_minutes(flight.duration)
-    duration = duration_minutes if duration_minutes is not None else float('inf')
+    duration = duration_minutes if duration_minutes is not None else float("inf")
     return duration
+
 
 def to_markdown(flights: List[FlightData]):
     content = ""
@@ -110,21 +120,22 @@ def to_markdown(flights: List[FlightData]):
         content += "\n"
     return content
 
+
 def to_json(flights: List[FlightData]):
     return [flight.model_dump() for flight in flights]
 
-# --- Flight Scraper Class ---
 
 class FlightScraperV2:
     """
     Scrapes Google Flights for flight information based on provided criteria.
     """
+
     def __init__(
         self,
         origin_airport_code,
         destination_airport_code,
         num_guests=1,
-        preferences={"seat_class": "economy", "direct": False}
+        preferences={"seat_class": "economy", "direct": False},
     ):
         self.origin_airport_code = origin_airport_code
         self.destination_airport_code = destination_airport_code
@@ -144,13 +155,13 @@ class FlightScraperV2:
                 FastFlightsFlightData(
                     date=self.date,
                     from_airport=self.origin_airport_code,
-                    to_airport=self.destination_airport_code
+                    to_airport=self.destination_airport_code,
                 )
             ],
             trip="one-way",
             seat=self.preferences.seat_class,
             max_stops=0 if self.preferences.direct else None,
-            passengers=Passengers(adults=self.num_guests)
+            passengers=Passengers(adults=self.num_guests),
         )
 
         params = {
@@ -165,8 +176,8 @@ class FlightScraperV2:
         url = self._get_flight_url()
         print(f"Fetching flights from: {url}")
         try:
-            response = requests.get(url, timeout=30) # Added timeout
-            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+            response = requests.get(url, timeout=30)  # Added timeout
+            response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
             self.html_content = response.text
             return True
         except requests.exceptions.RequestException as e:
@@ -183,7 +194,11 @@ class FlightScraperV2:
 
         tree = HTMLParser(self.html_content)
         nodes = tree.css("div[aria-label*='Select flight']")
-        self.raw_flight_strings = [node.attributes.get("aria-label", "") for node in nodes if node.attributes.get("aria-label")]
+        self.raw_flight_strings = [
+            node.attributes.get("aria-label", "")
+            for node in nodes
+            if node.attributes.get("aria-label")
+        ]
 
     def _parse_flight_data(self):
         """Parses structured flight data from the raw description strings."""
@@ -195,25 +210,27 @@ class FlightScraperV2:
         print(f"Parsing {len(self.raw_flight_strings)} potential flight strings...")
         parsed_flights_temp = []
         year = datetime.strptime(self.date, "%Y-%m-%d").year
-        seen_ids = set() # To track duplicates based on generated ID
+        seen_ids = set()  # To track duplicates based on generated ID
 
         for line in self.raw_flight_strings:
             flight_info = FlightData()
-            line = line.replace('\u202f', ' ') # Clean unicode spaces
+            line = line.replace("\u202f", " ")  # Clean unicode spaces
 
             # Price
-            price_match = re.search(r"From (\d{1,3}(?:,\d{3})*|\d+) (\w+)", line) # Improved price regex
+            price_match = re.search(
+                r"From (\d{1,3}(?:,\d{3})*|\d+) (\w+)", line
+            )  # Improved price regex
             if price_match:
                 currency = price_match.group(2).lower()
                 # Handle potential 's' at the end (euros, dollars)
-                if currency.endswith('s'):
+                if currency.endswith("s"):
                     currency = currency[:-1]
                 flight_info.price = FlightPrice(
-                    amount=int(price_match.group(1).replace(',', '')),
-                    currency=_currency_to_currency_code(currency)
+                    amount=int(price_match.group(1).replace(",", "")),
+                    currency=_currency_to_currency_code(currency),
                 )
             elif "Total price is unavailable" in line:
-                 flight_info.price = None # Explicitly set to None
+                flight_info.price = None  # Explicitly set to None
 
             # Stops
             stops_match = re.search(r"(\d+) stop(?:s)? flight", line)
@@ -222,7 +239,7 @@ class FlightScraperV2:
             elif "Nonstop flight" in line:
                 flight_info.num_stops = 0
             else:
-                flight_info.num_stops = None # Explicitly set None if not found
+                flight_info.num_stops = None  # Explicitly set None if not found
 
             # Duration
             duration_match = re.search(r"Total duration (.*?)\.", line)
@@ -230,74 +247,108 @@ class FlightScraperV2:
                 flight_info.duration = duration_match.group(1).strip()
 
             # Departure Info
-            dep_match = re.search(r"Leaves (.*?) Airport at (\d{1,2}:\d{2}\s?[AP]M) on (.*?) and", line) # Added optional space before AM/PM
+            dep_match = re.search(
+                r"Leaves (.*?) Airport at (\d{1,2}:\d{2}\s?[AP]M) on (.*?) and", line
+            )  # Added optional space before AM/PM
             if dep_match:
                 dep_airport_name = dep_match.group(1).strip()
-                flight_info.departure_time = dep_match.group(2).strip().replace(" ", "") # Remove space
+                flight_info.departure_time = (
+                    dep_match.group(2).strip().replace(" ", "")
+                )  # Remove space
                 dep_date_str = dep_match.group(3).strip()
                 flight_info.departure_date = _parse_date(dep_date_str, year)
                 flight_info.origin = f"{dep_airport_name} ({self.origin_airport_code})"
 
             # Arrival Info
-            arr_match = re.search(r"arrives at (.*?) Airport(?: at (\d{1,2}:\d{2}\s?[AP]M))? on (.*?)\.", line) # Made time optional
+            arr_match = re.search(
+                r"arrives at (.*?) Airport(?: at (\d{1,2}:\d{2}\s?[AP]M))? on (.*?)\.",
+                line,
+            )  # Made time optional
             if arr_match:
                 arr_airport_name = arr_match.group(1).strip()
-                flight_info.arrival_time = arr_match.group(2).strip().replace(" ", "") if arr_match.group(2) else None
+                flight_info.arrival_time = (
+                    arr_match.group(2).strip().replace(" ", "")
+                    if arr_match.group(2)
+                    else None
+                )
                 arr_date_str = arr_match.group(3).strip()
                 flight_info.arrival_date = _parse_date(arr_date_str, year)
-                flight_info.destination = f"{arr_airport_name} ({self.destination_airport_code})"
-
+                flight_info.destination = (
+                    f"{arr_airport_name} ({self.destination_airport_code})"
+                )
 
             # Airlines - More robust extraction
             # Try common patterns first
-            airline_match = re.search(r"flight with (.*?)(?: operated by .*?)?(?: arriving| \.|\.|$)", line, re.IGNORECASE)
+            airline_match = re.search(
+                r"flight with (.*?)(?: operated by .*?)?(?: arriving| \.|\.|$)",
+                line,
+                re.IGNORECASE,
+            )
             if not airline_match:
                 # Fallback if "flight with" isn't present (e.g., just airline name)
-                 airline_match = re.search(r"^(.*?) flight(?: from|\.|$)", line, re.IGNORECASE) # Match airline at the start
-
+                airline_match = re.search(
+                    r"^(.*?) flight(?: from|\.|$)", line, re.IGNORECASE
+                )  # Match airline at the start
 
             if airline_match:
-                airlines_str = airline_match.group(1).strip().rstrip('.')
+                airlines_str = airline_match.group(1).strip().rstrip(".")
                 # Remove phrases like "is a Nonstop" or similar if caught
-                airlines_str = re.sub(r'\s+is\s+a\s+\w+$', '', airlines_str, flags=re.IGNORECASE)
-                flight_info.airlines = [a.strip() for a in re.split(r'\s+and\s+|, ', airlines_str) if a.strip()]
+                airlines_str = re.sub(
+                    r"\s+is\s+a\s+\w+$", "", airlines_str, flags=re.IGNORECASE
+                )
+                flight_info.airlines = [
+                    a.strip()
+                    for a in re.split(r"\s+and\s+|, ", airlines_str)
+                    if a.strip()
+                ]
             else:
-                 flight_info.airlines = [] # Set to empty list if not found
+                flight_info.airlines = []  # Set to empty list if not found
 
             # Layovers / Stop Locations
-            layover_matches = re.findall(r"Layover \(\d+ of \d+\) is a (.*?) layover at (.*?) in (.*?)\.", line)
+            layover_matches = re.findall(
+                r"Layover \(\d+ of \d+\) is a (.*?) layover at (.*?) in (.*?)\.", line
+            )
             stops = []
             for layover in layover_matches:
                 layover_duration = layover[0].strip()
                 layover_airport = layover[1].strip()
                 layover_city = layover[2].strip()
-                stops.append(FlightStopLocation(
-                    city=layover_city,
-                    airport=layover_airport,
-                    duration=layover_duration
-                ))
+                stops.append(
+                    FlightStopLocation(
+                        city=layover_city,
+                        airport=layover_airport,
+                        duration=layover_duration,
+                    )
+                )
             flight_info.stop_locations = stops
 
             # Generate a unique ID for the flight based on its core details
             # Use a tuple of key fields for hashing to avoid issues with model string representation
             key_fields = (
-                flight_info.departure_date, flight_info.departure_time,
-                flight_info.arrival_date, flight_info.arrival_time,
-                flight_info.origin, flight_info.destination,
-                flight_info.num_stops, flight_info.duration,
-                tuple(sorted(flight_info.airlines)), # Sort airlines for consistency
-                flight_info.price.amount if flight_info.price else None
+                flight_info.departure_date,
+                flight_info.departure_time,
+                flight_info.arrival_date,
+                flight_info.arrival_time,
+                flight_info.origin,
+                flight_info.destination,
+                flight_info.num_stops,
+                flight_info.duration,
+                tuple(sorted(flight_info.airlines)),  # Sort airlines for consistency
+                flight_info.price.amount if flight_info.price else None,
             )
             flight_info.id = hashlib.sha256(str(key_fields).encode()).hexdigest()
 
             # Append only if essential data is present and it's not a duplicate
-            if flight_info.departure_time and flight_info.arrival_date and flight_info.id not in seen_ids:
+            if (
+                flight_info.departure_time
+                and flight_info.arrival_date
+                and flight_info.id not in seen_ids
+            ):
                 parsed_flights_temp.append(flight_info)
                 seen_ids.add(flight_info.id)
 
         self.parsed_flights = parsed_flights_temp
         print(f"Successfully parsed {len(self.parsed_flights)} unique flights.")
-
 
     def _filter_best_flights(self) -> List[FlightData]:
         """
@@ -320,29 +371,38 @@ class FlightScraperV2:
         shortest_flights_sorted = sorted(flights_copy, key=_shortest_flight_key)
 
         # Create position maps for quick lookup using the flight IDs
-        cheap_pos_map = {flight.id: i for i, flight in enumerate(cheapest_flights_sorted)}
-        short_pos_map = {flight.id: i for i, flight in enumerate(shortest_flights_sorted)}
+        cheap_pos_map = {
+            flight.id: i for i, flight in enumerate(cheapest_flights_sorted)
+        }
+        short_pos_map = {
+            flight.id: i for i, flight in enumerate(shortest_flights_sorted)
+        }
 
         # Select the top 3 cheapest flights (by ID)
         top_cheapest_ids = {flight.id for flight in cheapest_flights_sorted[:3]}
 
         # Calculate combined rank for remaining flights
         ranked_candidates = []
-        for flight in self.parsed_flights: # Iterate original list to maintain original objects
+        for (
+            flight
+        ) in self.parsed_flights:  # Iterate original list to maintain original objects
             if flight.id not in top_cheapest_ids:
                 # Ensure the flight ID exists in both maps (it should, barring errors)
                 if flight.id in cheap_pos_map and flight.id in short_pos_map:
                     combined_rank = cheap_pos_map[flight.id] + short_pos_map[flight.id]
                     ranked_candidates.append((combined_rank, flight))
                 else:
-                     print(f"Warning: Flight ID {flight.id} missing from position maps during ranking.")
-
+                    print(
+                        f"Warning: Flight ID {flight.id} missing from position maps during ranking."
+                    )
 
         # Sort candidates by the combined rank (lower is better)
         ranked_candidates.sort(key=lambda x: x[0])
 
         # Get the actual FlightData objects for the top 3 cheapest
-        top_cheapest = [flight for flight in self.parsed_flights if flight.id in top_cheapest_ids]
+        top_cheapest = [
+            flight for flight in self.parsed_flights if flight.id in top_cheapest_ids
+        ]
         # Ensure top_cheapest maintains the original price sort order
         top_cheapest.sort(key=_cheapest_flight_key)
 
@@ -355,13 +415,13 @@ class FlightScraperV2:
         # Ensure we don't exceed 5 flights due to edge cases
         return best_flights[:5]
 
-    async def get_flight_details(self, date: str) -> List[FlightData]:
+    def get_flight_details(self, date: str) -> List[FlightData]:
         """
         Fetches, parses, and filters flight details, returning the best options.
         """
         self.date = date
         if not self._fetch_flight_html():
-            return [] # Return empty list if fetching failed
+            return []  # Return empty list if fetching failed
 
         self._extract_flight_strings()
         self._parse_flight_data()

@@ -10,9 +10,16 @@ def travel_preferences_prompt(input: str) -> str:
         IMPORTANT: 
         - DO NOT make any assumptions about travel details that the user has not explicitly provided
         - Only fill in fields where the user has clearly stated the information
-        - Leave fields EMPTY if the user hasn't provided the specific information
+        - For required fields, leave them EMPTY if the user hasn't provided the specific information
+        - For optional fields, follow this logic:
+          1. Did the assistant ask about these fields in the conversation history?
+          2. If YES:
+             - Did the user provide a specific preference or value for it in response?
+               - If YES, use the user's provided value.
+               - If NO (e.g., the user said "no", "no preference", "any", "doesn't matter", or simply didn't answer that specific question), fill the field with "not specified" for text fields, 0 for numeric fields, False for boolean fields and [] for list fields.
+          3. If NO (the assistant did not ask about these fields), leave the fields EMPTY.
         - If the user mentions origin or destination city, use the nearest airport code
-        - If the user don't provide the number of guests, don't assume it's 1
+        - If the user doesn't provide the number of guests, don't assume it's 1
         
         Conversation:
         {input}
@@ -22,16 +29,17 @@ def travel_preferences_prompt(input: str) -> str:
         Make sure the airport code is valid.
     """
 
+
 def get_travel_summary_prompt(flights: str, hotels: str, **kwargs) -> str:
     # Suggestion: Calculate number_of_nights here based on start/end dates
     # num_nights = calculate_nights(kwargs.get('start_date'), kwargs.get('end_date'))
     # Then pass num_nights into the prompt if needed, or use it for pre-calculation.
 
     # Extract relevant preferences for clarity in the prompt
-    start_date = kwargs.get('start_date', 'unknown start date')
-    end_date = kwargs.get('end_date', 'unknown end date')
-    num_guests = kwargs.get('num_guests', 'unknown number of guests')
-    preferences = kwargs.get('preferences', "not specified")
+    start_date = kwargs.get("start_date", "unknown start date")
+    end_date = kwargs.get("end_date", "unknown end date")
+    num_guests = kwargs.get("num_guests", "unknown number of guests")
+    preferences = kwargs.get("preferences", "not specified")
 
     return f"""Summarize the provided flight and hotel options. Calculate the total estimated travel cost, including flights and the total hotel cost for the duration of the stay. Finally, provide a recommendation for one flight combination (outbound and return) and one hotel, along with a justification.
 
@@ -77,6 +85,7 @@ def get_travel_summary_prompt(flights: str, hotels: str, **kwargs) -> str:
         - Arrival: [Arrival Time] at [Arrival Airport]
         - Duration: [Duration]
         - Price: [Price]
+
         **Total Flight Cost:** [Calculated total flight cost]
 
         ### Recommended Hotel:
@@ -84,7 +93,8 @@ def get_travel_summary_prompt(flights: str, hotels: str, **kwargs) -> str:
         - Rating: [Rating]/5
         - Price per night: [Price]
         - Location: [Location Info]
-        - Amenities: [Amenities]
+        - Amenities: [Amenities] (Note: If no amenities are provided from the hotel details, leave this section as not specified)
+
         **Total Hotel Cost:** [Calculated total hotel cost for the duration]
 
         **Estimated Total Trip Cost:** [Grand total of flights + hotel]

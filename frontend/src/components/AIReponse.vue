@@ -141,11 +141,16 @@ const handleRegenerate = () => {
 .task-response :deep(ul) {
   list-style-type: disc;
   margin-left: 1rem;
+  margin-bottom: 6px;
 }
 
 .task-response :deep(hr) {
   margin: 1rem 0;
   color: var(--color-gray-500);
+}
+
+.task-response :deep(a) {
+  text-decoration: underline;
 }
 
 .collapsable-content {

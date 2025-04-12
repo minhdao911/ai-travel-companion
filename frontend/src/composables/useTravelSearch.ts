@@ -1,5 +1,5 @@
 import { TaskType, MessageRole, type Message } from "@/types";
-import { searchFlightsV2, searchHotels } from "@/services/api";
+import { searchFlightsV2, searchHotelsV2 } from "@/services/api";
 import { generateId } from "@/utils/id";
 import { useTravelStore } from "@/stores/travel";
 import { startTimer } from "@/utils/performance";
@@ -78,7 +78,7 @@ export function useTravelSearch(
 
       // Call the hotel search API
       startTimer(PROCESS_NAMES.HOTEL_SEARCH);
-      const response = await searchHotels(travelStore.context!, preferences);
+      const response = await searchHotelsV2(travelStore.context!, preferences);
 
       // Store the task ID
       setTaskProcessing(TaskType.HotelSearch, response.task_id);

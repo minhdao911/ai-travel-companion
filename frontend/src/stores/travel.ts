@@ -12,13 +12,12 @@ export const useTravelStore = defineStore("travel", {
         this.preferences = {
           activities: preferences.activities || [],
           accommodation: {
-            type: preferences.accommodation?.type || "",
+            types: preferences.accommodation?.types || ["hotel"],
             max_price_per_night: preferences.accommodation?.max_price_per_night || 0,
             amenities: preferences.accommodation?.amenities || [],
           },
-          budget: preferences.budget || 0,
           flight: {
-            class: preferences.flight?.class || "",
+            class: preferences.flight?.class || "economy",
             direct: preferences.flight?.direct || false,
           },
           food_preferences: preferences.food_preferences || [],
@@ -38,6 +37,8 @@ export const useTravelStore = defineStore("travel", {
             origin_airport_code: context.origin_airport_code || "",
             destination_airport_code: context.destination_airport_code || "",
             num_guests: context.num_guests || 1,
+            budget: context.budget || 0,
+            currency: context.currency || "USD",
             ...context,
           };
         } else {

@@ -10,13 +10,14 @@ travel_preferences_schema = {
         "num_guests": {"type": "integer", "description": "Number of travelers"},
         "start_date": {"type": "string", "description": "Departure date in format like 2025-05-02"},
         "end_date": {"type": "string", "description": "Return date in format like 2025-05-09"},
-        "budget": {"type": "integer", "description": "Total budget for the trip in USD"},
+        "budget": {"type": "integer", "description": "Total budget for the trip"},
+        "currency": {"type": "string", "description": "Currency of the budget"},
         "accommodation": {
             "type": "object",
             "description": "Accommodation preferences",
             "properties": {
-                "type": {"type": "string", "description": "Type of accommodation (hotel, hostel, etc.)"},
-                "max_price_per_night": {"type": "integer", "description": "Maximum price per night in USD"},
+                "type": {"type": "array", "description": "Type of accommodation (hotel, hostel, etc.)", "items": {"type": "string"}},
+                "max_price_per_night": {"type": "integer", "description": "Maximum price per night"},
                 "amenities": {
                     "type": "array",
                     "description": "List of desired amenities",

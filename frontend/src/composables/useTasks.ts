@@ -19,6 +19,22 @@ export function useTasks(
 
   const pollInterval = ref<number | null>(null);
 
+  const renderer = new marked.Renderer();
+  renderer.link = ({
+    href,
+    title,
+    text,
+  }: {
+    href: string;
+    title?: string | null;
+    text: string;
+  }): string => {
+    // Construct the anchor tag with target="_blank" and rel="nofollow"
+    // Handle potential null/undefined title
+    const titleAttr = title ? ` title="${title}"` : "";
+    return `<a target="_blank" rel="nofollow" href="${href}"${titleAttr}>${text}</a>`;
+  };
+
   // Update task message progress based on status
   const updateTaskMessageProgress = (taskType: TaskType) => {
     const { messageId, status } = taskStore.tasks[taskType];
@@ -72,12 +88,15 @@ export function useTasks(
     } else if (status === TaskStatus.Completed) {
       if (taskType === TaskType.FlightSearch) {
         endTimer(PROCESS_NAMES.FLIGHT_SEARCH);
-        travelStore.setContext({ flight_results: data });
+        travelStore.setContext({
+          flight_results: data.raw_data,
+          currency: data.json_data.outbound[0].price.currency,
+        });
 
         addMessage({
           role: MessageRole.Task,
           content: "🛫 I got some flight options for you.",
-          collapsable_content: await marked.parse(data),
+          collapsable_content: await marked(data.raw_data, { renderer }),
           taskType: TaskType.FlightSearch,
         });
 
@@ -90,12 +109,12 @@ export function useTasks(
       }
       if (taskType === TaskType.HotelSearch) {
         endTimer(PROCESS_NAMES.HOTEL_SEARCH);
-        travelStore.setContext({ hotel_results: data });
+        travelStore.setContext({ hotel_results: data.raw_data });
 
         addMessage({
           role: MessageRole.Task,
           content: "🏨 I got some hotel options for you.",
-          collapsable_content: await marked.parse(data),
+          collapsable_content: await marked(data.raw_data, { renderer }),
           taskType: TaskType.HotelSearch,
         });
 
@@ -132,7 +151,7 @@ export function useTasks(
       });
       addMessage({
         role: MessageRole.Assistant,
-        content: await marked.parse(summary),
+        content: await marked(summary, { renderer }),
         taskType: TaskType.TravelSummary,
       });
       setLoading(false);

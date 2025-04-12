@@ -42,14 +42,13 @@ export type Message = {
 };
 
 export type TravelPreferences = {
-  budget?: number;
   accommodation?: {
-    type?: string;
+    types?: string[];
     max_price_per_night?: number;
     amenities?: string[];
   };
   flight?: {
-    class?: string;
+    class?: "economy" | "premium economy" | "business" | "first";
     direct?: boolean;
   };
   activities?: string[];
@@ -64,6 +63,8 @@ export type TravelContext = {
   origin_airport_code: string;
   destination_airport_code: string;
   num_guests: number;
+  budget?: number;
+  currency?: string;
   flight_results?: string;
   hotel_results?: string;
   summary?: string;

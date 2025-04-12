@@ -1,4 +1,4 @@
-import { type Message, MessageRole, TaskType } from "@/types";
+import { type Message } from "@/types";
 import { defineStore } from "pinia";
 import { generateId } from "@/utils/id";
 

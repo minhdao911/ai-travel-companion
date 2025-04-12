@@ -158,7 +158,7 @@ def generate_conversation_response(conversation_history: list = []) -> TravelPre
                 missing_fields = check_result["missing_fields"]
                 response_templates = {
                     "budget": "What is your budget for the trip?",
-                    "accommodation": "What type of accommodation are you looking for?",
+                    "accommodation": "What type of accommodation are you looking for? How much are you willing to spend per night?",
                     "flight": "Do you prefer economy or business class, direct or connecting flights?",
                     "activities": "What activities are you interested in?",
                     "food_preferences": "What type of food are you interested in?",
