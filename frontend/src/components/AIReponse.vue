@@ -4,16 +4,11 @@ import Button from "./Button.vue";
 import Icon from "./Icon.vue";
 import { MessageRole, type Message } from "@/types";
 
-// const emit = defineEmits<{
-//   (e: "regenerate", messageId: string): void;
-// }>();
-
 const props = defineProps<{
   message: Message;
   isChatLoading: boolean;
 }>();
 
-// const isCopied = ref(false);
 const isCollapsableContentVisible = ref(false);
 
 const getIconStyle = () => {
@@ -39,18 +34,6 @@ const getIconStyle = () => {
 const toggleCollapsableContent = () => {
   isCollapsableContentVisible.value = !isCollapsableContentVisible.value;
 };
-
-// const handleCopy = () => {
-//   navigator.clipboard.writeText(props.message.content);
-//   isCopied.value = true;
-//   setTimeout(() => {
-//     isCopied.value = false;
-//   }, 1000);
-// };
-
-// const handleRegenerate = () => {
-//   emit("regenerate", props.message.id);
-// };
 </script>
 
 <template>
@@ -63,10 +46,9 @@ const toggleCollapsableContent = () => {
       <Icon v-else :name="getIconStyle().icon" />
     </div>
     <div class="flex-1 flex flex-col gap-2">
-      <div
-        class="flex flex-col gap-2 w-fit text-white task-response"
-        v-html="props.message.content"
-      ></div>
+      <pre class="whitespace-pre-wrap break-words text-white font-sans">{{
+        props.message.content
+      }}</pre>
 
       <!-- Collapsable content -->
       <div v-if="props.message.collapsable_content" class="w-full">
@@ -80,69 +62,17 @@ const toggleCollapsableContent = () => {
           <p>{{ isCollapsableContentVisible ? "Show less details" : "Show more details" }}</p>
         </Button>
 
-        <div
+        <pre
           v-if="isCollapsableContentVisible"
-          class="flex flex-col gap-2 w-fit text-gray-200 task-response collapsable-content"
-          v-html="props.message.collapsable_content"
-        ></div>
-      </div>
-
-      <!-- <div v-if="!props.message.loading && !props.isChatLoading" class="flex items-center gap-1">
-        <Button variant="icon" tooltip tooltipText="Regenerate" @click="handleRegenerate">
-          <Icon name="refresh" size="text-base" />
-        </Button>
-        <Button
-          variant="icon"
-          tooltip
-          :tooltipText="isCopied ? 'Copied' : 'Copy'"
-          @click="handleCopy"
+          class="whitespace-pre-wrap break-words text-white font-sans collapsable-content"
+          >{{ props.message.collapsable_content }}</pre
         >
-          <Icon name="copy" size="text-base" />
-        </Button>
-      </div> -->
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.task-response :deep(h1) {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 15px;
-}
-
-.task-response :deep(h2) {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.task-response :deep(h3) {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 10px;
-}
-
-.task-response :deep(strong) {
-  font-weight: 600;
-  line-height: 1.75;
-}
-
-.task-response :deep(ul) {
-  list-style-type: disc;
-  margin-left: 1rem;
-  margin-bottom: 6px;
-}
-
-.task-response :deep(hr) {
-  margin: 1rem 0;
-  color: var(--color-gray-500);
-}
-
-.task-response :deep(a) {
-  text-decoration: underline;
-}
-
 .collapsable-content {
   border-left: 2px solid #2f3245;
   padding-left: 16px;

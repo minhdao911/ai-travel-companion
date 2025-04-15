@@ -1,86 +1,31 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
-import asyncio
+from typing import List, Dict, Any
 import uuid
-from enum import Enum
+import json
+from starlette.responses import StreamingResponse
+from langchain_core.messages import (
+    HumanMessage,
+    AIMessage,
+    ToolMessage,
+    BaseMessage,
+)
 
-# Import the LangGraph app and state
-from graphs.recommendation import (
-    recommendation_graph,
-    TravelState,
-    MessageItem as GraphMessageItem,
+from graphs.assistant import (
+    graph as assistant_graph,
 )
 
 app = FastAPI(title="AI Travel Companion API")
 
-# Configure CORS to allow requests from the frontend
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vue's default dev server port
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Simple in-memory storage for graph task states
-recommendation_graph_tasks = {}
-
-
-class TaskStatus(Enum):
-    PENDING = "PENDING"
-    PROCESSING = "PROCESSING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-
-
-class TravelInputRequest(BaseModel):
-    user_input: str
-    conversation_history: Optional[List[GraphMessageItem]] = []
-    optional_details_asked: bool = False
-
-
-class GraphTaskStatusResponse(BaseModel):
-    status: TaskStatus
-    data: Optional[TravelState] = None  # Return the whole final state
-    error: Optional[str] = None
-
-
-async def run_travel_graph(task_id: str, initial_state: TravelState):
-    """Runs the travel planning graph asynchronously and updates the task status."""
-    global recommendation_graph_tasks
-    try:
-        print(f"[Task {task_id}] Starting graph execution.")
-        recommendation_graph_tasks[task_id]["status"] = "PROCESSING"
-
-        # Invoke the graph
-        final_state = await recommendation_graph.ainvoke(initial_state)
-
-        print(f"[Task {task_id}] Graph execution completed.")
-        recommendation_graph_tasks[task_id]["status"] = "COMPLETED"
-        recommendation_graph_tasks[task_id]["data"] = final_state
-
-        if final_state.get("assistant_message"):
-            print(
-                f"[Task {task_id}] Assistant message: {final_state['assistant_message']}"
-            )
-            recommendation_graph_tasks[task_id]["status"] = "COMPLETED"
-            return
-
-        # Check for errors within the final state and potentially mark as FAILED
-        if final_state.get("error_message"):
-            print(
-                f"[Task {task_id}] Graph finished with error: {final_state['error_message']}"
-            )
-            recommendation_graph_tasks[task_id]["status"] = "FAILED"
-            recommendation_graph_tasks[task_id]["error"] = final_state["error_message"]
-            return
-
-    except Exception as e:
-        print(f"[Task {task_id}] Critical error during graph execution: {str(e)}")
-        recommendation_graph_tasks[task_id]["status"] = "FAILED"
-        recommendation_graph_tasks[task_id]["error"] = str(e)
 
 
 @app.get("/api/health")
@@ -88,52 +33,140 @@ async def health_check():
     return {"status": "ok", "message": "API is running"}
 
 
-@app.post("/api/travel-recommendation")
-async def plan_travel(request: TravelInputRequest):
-    """Initiates the travel planning process using LangGraph."""
-    global recommendation_graph_tasks
+class StreamRequest(BaseModel):
+    messages: List[Dict[str, Any]]
+
+
+def _convert_message_dicts_to_objects(
+    messages: List[Dict[str, Any]],
+) -> List[BaseMessage]:
+    """Converts message dictionaries from the request to LangChain message objects."""
+    output_messages = []
+    print(f"Converting message dicts: {messages}")
+    for msg in messages:
+        role = msg.get("role")
+        content = msg.get("content")
+        tool_calls = msg.get("tool_calls")
+        tool_call_id = msg.get("tool_call_id")
+
+        if not content and not tool_calls:
+            if role == "assistant":
+                pass
+            else:
+                print(f"Skipping message with empty content and no tool calls: {msg}")
+                continue
+
+        if role == "user":
+            output_messages.append(HumanMessage(content=content or ""))
+        elif role == "assistant":
+            if tool_calls and isinstance(tool_calls, list):
+                valid_tool_calls = []
+                for tc in tool_calls:
+                    if (
+                        isinstance(tc, dict)
+                        and tc.get("id")
+                        and tc.get("name")
+                        and isinstance(tc.get("args"), dict)
+                    ):
+                        valid_tool_calls.append(
+                            {
+                                "id": tc["id"],
+                                "name": tc["name"],
+                                "args": tc["args"],
+                                "type": "tool_call",
+                            }
+                        )
+                    else:
+                        print(f"Warning: Invalid tool_call format skipped: {tc}")
+                if valid_tool_calls:
+                    output_messages.append(
+                        AIMessage(content=content or "", tool_calls=valid_tool_calls)
+                    )
+                else:
+                    output_messages.append(AIMessage(content=content or ""))
+
+            else:
+                output_messages.append(AIMessage(content=content or ""))
+        elif role == "tool":
+            if tool_call_id:
+                output_messages.append(
+                    ToolMessage(content=content or "", tool_call_id=tool_call_id)
+                )
+            else:
+                print(f"Warning: Tool message missing tool_call_id: {msg}")
+        else:
+            print(f"Warning: Unrecognized message role '{role}' skipped: {msg}")
+
+    print(f"Converted LangChain messages: {output_messages}")
+    return output_messages
+
+
+@app.post("/api/chat/stream")
+async def stream_chat(request: StreamRequest):
+    """Streams responses for the recommendation assistant using Server-Sent Events."""
+    thread_id = f"stream_{uuid.uuid4()}"
+    print(f"Received stream request, assigning Thread ID: {thread_id}")
+
     try:
-        task_id = str(uuid.uuid4())
-        print(f"Received travel plan request, assigning Task ID: {task_id}")
+        graph_input = {"messages": _convert_message_dicts_to_objects(request.messages)}
 
-        # Prepare initial state for the graph
-        initial_state = TravelState(
-            conversation_history=[
-                {"role": x["role"], "content": x["content"]}
-                for x in request.conversation_history
-            ],
-            user_input=request.user_input,
-            optional_details_asked=request.optional_details_asked,
-        )
+        if not graph_input["messages"]:
+            print(f"[Thread {thread_id}] No valid messages found after conversion.")
 
-        # Store initial task status
-        recommendation_graph_tasks[task_id] = {
-            "status": "PENDING",
-            "data": None,
-            "error": None,
-        }
+            async def empty_stream():
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No valid messages received.'})}\n\n"
+                yield f"data: {json.dumps({'type': 'end'})}\n\n"
 
-        # Start the graph execution in the background
-        # Using asyncio.create_task for simplicity
-        asyncio.create_task(run_travel_graph(task_id, initial_state))
+            return StreamingResponse(empty_stream(), media_type="text/event-stream")
 
-        return {"task_id": task_id, "status": "PENDING"}
+        async def event_stream():
+            try:
+                async for event in assistant_graph.astream_events(
+                    graph_input,
+                    config={"configurable": {"thread_id": thread_id}},
+                    version="v1",
+                ):
+                    kind = event["event"]
+                    data = event.get("data", {})
+                    name = event.get("name", "")
+
+                    if kind == "on_chat_model_stream":
+                        chunk = data.get("chunk")
+                        if chunk and chunk.content:
+                            yield f"data: {json.dumps({'type': 'token', 'content': chunk.content})}\n\n"
+                        if chunk and chunk.tool_call_chunks:
+                            for tool_chunk in chunk.tool_call_chunks:
+                                yield f"data: {json.dumps({'type': 'tool_call_chunk', 'chunk': tool_chunk})}\n\n"
+
+                    elif kind == "on_tool_start":
+                        print(
+                            f"\n--\nStarting tool: {name} with inputs: {data.get('input')}\n--"
+                        )
+                        yield f"data: {json.dumps({'type': 'tool_start', 'name': name, 'input': data.get('input')})}\n\n"
+
+                    elif kind == "on_tool_end":
+                        print(
+                            f"\n--\nEnded tool: {name}\nTool output was: {data.get('output')}\n--"
+                        )
+                        yield f"data: {json.dumps({'type': 'tool_end', 'name': name })}\n\n"
+
+            except Exception as e:
+                print(f"[Thread {thread_id}] Error during stream generation: {str(e)}")
+                import traceback
+
+                traceback.print_exc()
+                yield f"data: {json.dumps({'type': 'error', 'message': f'Stream error: {str(e)}'})}\n\n"
+            finally:
+                print(f"[Thread {thread_id}] Stream ended.")
+                yield f"data: {json.dumps({'type': 'end'})}\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
 
     except Exception as e:
-        print(f"Error initiating travel plan task: {str(e)}")
+        print(f"Error initiating recommendation stream: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
         raise HTTPException(
-            status_code=500, detail=f"Failed to start planning task: {str(e)}"
+            status_code=500, detail=f"Failed to start recommendation stream: {str(e)}"
         )
-
-
-@app.get(
-    "/api/travel-recommendation/status/{task_id}",
-    response_model=GraphTaskStatusResponse,
-)
-async def get_plan_travel_status(task_id: str):
-    """Gets the status and result of a travel planning task."""
-    task_info = recommendation_graph_tasks.get(task_id)
-    if not task_info:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    return GraphTaskStatusResponse(**task_info)

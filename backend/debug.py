@@ -10,27 +10,14 @@ import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import the backend modules
-from travel.travel_details import get_travel_details
-from scrapers.flight_scraper import FlightScraper, to_json, to_markdown
-from scrapers.hotel_scraper import get_hotel_details
-from graphs.recommendation import recommendation_graph
+from tools.flight_scraper import FlightScraper, to_json, to_markdown
+from tools.hotel_scraper import get_hotel_details
 
 
 class Debug:
     def __init__(self):
         self.parser = self._create_parser()
         self.commands = {
-            "extract-travel-details": {
-                "help": "Extract travel details from user input",
-                "args": [
-                    {
-                        "name": "user_input",
-                        "type": str,
-                        "required": True,
-                        "help": "User input message",
-                    },
-                ],
-            },
             "search-flights": {
                 "help": "Search for flights",
                 "args": [
@@ -38,13 +25,13 @@ class Debug:
                         "name": "origin",
                         "type": str,
                         "required": True,
-                        "help": "Origin city name",
+                        "help": "Origin airport code",
                     },
                     {
                         "name": "destination",
                         "type": str,
                         "required": True,
-                        "help": "Destination city name",
+                        "help": "Destination airport code",
                     },
                     {
                         "name": "start_date",
@@ -125,17 +112,6 @@ class Debug:
                     },
                 ],
             },
-            "plan-travel": {
-                "help": "Generate travel recommendation",
-                "args": [
-                    {
-                        "name": "user_input",
-                        "type": str,
-                        "required": True,
-                        "help": "User input message",
-                    },
-                ],
-            },
         }
 
     def _run_command(self, cmd_name, args):
@@ -143,14 +119,10 @@ class Debug:
             namespace = argparse.Namespace(**args)
             if cmd_name == "health":
                 self._health_check()
-            elif cmd_name == "extract-travel-details":
-                asyncio.run(self._extract_travel_details(namespace))
             elif cmd_name == "search-flights":
                 asyncio.run(self._search_flights(namespace))
             elif cmd_name == "search-hotels":
                 asyncio.run(self._search_hotels(namespace))
-            elif cmd_name == "plan-travel":
-                asyncio.run(self._run_recommendation_graph(namespace))
         except Exception as e:
             print(f"\nCommand execution failed: {str(e)}")
 
@@ -167,14 +139,6 @@ class Debug:
 
         # Health check command
         health_parser = subparsers.add_parser("health", help="Check health of the API")
-
-        # Travel details command
-        travel_details_parser = subparsers.add_parser(
-            "travel-details", help="Generate travel conversation response"
-        )
-        travel_details_parser.add_argument(
-            "--user-input", type=str, required=True, help="User input message"
-        )
 
         # Search flights command
         flights_parser = subparsers.add_parser(
@@ -223,14 +187,6 @@ class Debug:
             "--accommodation-types",
             type=str,
             help="List of accommodation types, separated by commas (optional)",
-        )
-
-        # Travel recommendation command
-        summary_parser = subparsers.add_parser(
-            "plan-travel", help="Generate travel recommendation"
-        )
-        summary_parser.add_argument(
-            "--user-input", type=str, required=True, help="User input message"
         )
 
         # List available commands
@@ -356,33 +312,28 @@ class Debug:
     def _health_check(self):
         print(json.dumps({"status": "ok", "message": "API is running"}, indent=2))
 
-    async def _extract_travel_details(self, args):
-        try:
-            current_user_input = args.user_input
-            response_data = get_travel_details(f"User: {current_user_input}")
-            print(f"Travel details: {response_data}")
-
-        except Exception as e:
-            print(f"Error during conversation processing: {str(e)}")
-
     async def _search_flights(self, args):
         try:
             print(f"Searching for flights from {args.origin} to {args.destination}...")
+
+            print(args)
+
+            # Safely access optional arguments with default values
+            seat_class = getattr(args, "seat_class", "economy")
+            direct = getattr(args, "direct", False)
 
             scraper = FlightScraper(
                 args.origin,
                 args.destination,
                 args.num_guests,
-                {
-                    "seat_class": args.seat_class,
-                    "direct": args.direct,
-                },
+                seat_class,
+                direct,
             )
-            outbound_flights = await scraper.get_flight_details(args.start_date)
+            outbound_flights = scraper.get_flight_details(args.start_date)
             outbound_flights_json = to_json(outbound_flights)
             outbound_flights_str = to_markdown(outbound_flights)
 
-            return_flights = await scraper.get_flight_details(args.end_date)
+            return_flights = scraper.get_flight_details(args.end_date)
             return_flights_json = to_json(return_flights)
             return_flights_str = to_markdown(return_flights)
 
@@ -417,28 +368,6 @@ class Debug:
 
             # Save results to file
             self._save_results_to_file("hotel_results", results)
-
-        except Exception as e:
-            print(f"Error: {str(e)}")
-
-    async def _run_recommendation_graph(self, args):
-
-        try:
-            inputs = {
-                "conversation_history": [
-                    {
-                        "role": "user",
-                        "content": args.user_input,
-                    }
-                ],
-                "user_input": args.user_input,
-                "optional_details_asked": True,
-            }
-            async for output in recommendation_graph.astream(inputs):
-                # Print output from each node
-                for key, value in output.items():
-                    print(f"Output from node '{key}':\n{value}")
-                print("\n---")
 
         except Exception as e:
             print(f"Error: {str(e)}")

@@ -1,6 +1,7 @@
-from scrapers.brightdata_api import BrightDataAPI
+from tools.brightdata_api import BrightDataAPI
 from urllib.parse import urlencode, quote
 import concurrent.futures
+from langchain_core.tools import tool
 
 
 def get_hotel_details(
@@ -63,6 +64,7 @@ def get_hotel_details(
     return hotel_details
 
 
+@tool
 def search_hotels(
     location: str,
     checkin_date: str,
@@ -71,7 +73,20 @@ def search_hotels(
     currency: str = "USD",
     free_cancellation: bool = False,
     accommodation_types: list[str] = ["hotel"],
-):
+) -> list[dict]:
+    """
+    Search for hotels in a given location.
+    Args:
+        location: The location to search for hotels in.
+        checkin_date: The checkin date in YYYY-MM-DD format.
+        checkout_date: The checkout date in YYYY-MM-DD format.
+        num_guests: The number of guests.
+        currency: The currency to search for hotels in.
+        free_cancellation: Whether to search for free cancellation hotels.
+        accommodation_types: The types of accommodation to search for.
+    Returns:
+        A list of dictionaries containing the hotel details.
+    """
     brightdata_api = BrightDataAPI()
     accommodation_types_str = " or ".join(accommodation_types)
     query = urlencode({"q": accommodation_types_str + " in " + location})

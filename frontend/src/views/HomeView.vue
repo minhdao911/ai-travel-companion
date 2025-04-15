@@ -4,10 +4,9 @@ import TextInput from "@/components/TextInput.vue";
 import { Tabs } from "@/types";
 import Welcome from "@/components/Welcome.vue";
 import ChatInterface from "@/components/ChatInterface.vue";
-import { useTravelPlanner } from "@/composables/useTravelPlanner";
+import { useChat } from "@/composables/useChat";
 
-const { input, messages, isLoading, currentTaskId, handleInputEnter, onRegenerate } =
-  useTravelPlanner();
+const { input, messages, isLoading, handleInputEnter } = useChat();
 </script>
 
 <template>
@@ -20,14 +19,14 @@ const { input, messages, isLoading, currentTaskId, handleInputEnter, onRegenerat
         </p>
       </Welcome>
       <div v-else class="flex flex-col w-full h-full overflow-y-auto">
-        <ChatInterface :messages="messages" :isLoading="isLoading" :onRegenerate="onRegenerate" />
+        <ChatInterface :messages="messages" :isLoading="isLoading" />
       </div>
       <TextInput
         :placeholder="'Where would you like to go?'"
         :activeTab="Tabs.FlightsAndHotels"
         v-model="input"
         :onEnter="handleInputEnter"
-        :disabled="isLoading || !!currentTaskId"
+        :disabled="isLoading"
       />
     </div>
   </Container>

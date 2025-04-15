@@ -8,6 +8,7 @@ import re
 from datetime import datetime
 import hashlib
 from utils.datetime import format_date
+from langchain_core.tools import tool
 
 
 class FlightPrice(BaseModel):
@@ -19,11 +20,6 @@ class FlightStopLocation(BaseModel):
     city: str
     airport: str
     duration: str
-
-
-class FlightPreferences(BaseModel):
-    seat_class: str
-    direct: bool
 
 
 class FlightData(BaseModel):
@@ -39,7 +35,6 @@ class FlightData(BaseModel):
     duration: str | None = None
     airlines: list[str] = []
     stop_locations: List[FlightStopLocation] = []
-    preferences: FlightPreferences | None = None
 
 
 def _parse_duration_to_minutes(duration_str: str | None) -> int | None:
@@ -104,7 +99,7 @@ def _shortest_flight_key(flight: FlightData):
     return duration
 
 
-def to_markdown(flights: List[FlightData]):
+def to_markdown(flights: List[FlightData]) -> str:
     content = ""
     for index, flight in enumerate(flights):
         content += f"Flight {index + 1}:\n"
@@ -121,7 +116,7 @@ def to_markdown(flights: List[FlightData]):
     return content
 
 
-def to_json(flights: List[FlightData]):
+def to_json(flights: List[FlightData]) -> List[dict]:
     return [flight.model_dump() for flight in flights]
 
 
@@ -135,13 +130,15 @@ class FlightScraper:
         origin_airport_code,
         destination_airport_code,
         num_guests=1,
-        preferences={"seat_class": "economy", "direct": False},
+        seat_class="economy",
+        direct=False,
     ):
         self.origin_airport_code = origin_airport_code
         self.destination_airport_code = destination_airport_code
         self.date = None
         self.num_guests = num_guests
-        self.preferences = FlightPreferences(**preferences)
+        self.seat_class = seat_class
+        self.direct = direct
 
         self.html_content = None
         self.raw_flight_strings = []
@@ -159,8 +156,8 @@ class FlightScraper:
                 )
             ],
             trip="one-way",
-            seat=self.preferences.seat_class,
-            max_stops=0 if self.preferences.direct else None,
+            seat=self.seat_class,
+            max_stops=0 if self.direct else None,
             passengers=Passengers(adults=self.num_guests),
         )
 
@@ -435,3 +432,30 @@ class FlightScraper:
         print(f"Selected {len(best_flights_data)} best flights.")
 
         return best_flights_data
+
+
+@tool
+def search_flights(
+    origin_airport_code: str,
+    destination_airport_code: str,
+    date: str,
+    num_guests: int,
+    seat_class: str,
+    direct: bool,
+) -> List[dict]:
+    """
+    Search for flights between two airports on a given date.
+    Args:
+        origin_airport_code: The IATA code of the origin airport.
+        destination_airport_code: The IATA code of the destination airport.
+        date: The date of the flight in YYYY-MM-DD format.
+        num_guests: The number of guests on the flight.
+        seat_class: The class of seat on the flight.
+        direct: Whether the flight is direct.
+    Returns:
+        A list of dictionaries containing the flight details.
+    """
+    scraper = FlightScraper(
+        origin_airport_code, destination_airport_code, num_guests, seat_class, direct
+    )
+    return to_json(scraper.get_flight_details(date))

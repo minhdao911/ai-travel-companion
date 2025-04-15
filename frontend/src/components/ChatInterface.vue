@@ -6,12 +6,7 @@ import type { Message } from "@/types";
 const props = defineProps<{
   messages: Message[];
   isLoading: boolean;
-  onRegenerate: (messageId: string) => void;
 }>();
-
-const handleRegenerate = (messageId: string) => {
-  props.onRegenerate(messageId);
-};
 </script>
 
 <template>
@@ -21,12 +16,7 @@ const handleRegenerate = (messageId: string) => {
       <ChatBubble v-if="message.role === 'user'" :content="message.content" />
 
       <!-- Use AIReponse for ai messages -->
-      <AIReponse
-        v-else
-        :message="message"
-        :isChatLoading="props.isLoading"
-        @regenerate="handleRegenerate"
-      />
+      <AIReponse v-else :message="message" :isChatLoading="props.isLoading" />
     </template>
   </div>
 </template>

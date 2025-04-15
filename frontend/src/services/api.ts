@@ -1,50 +1,160 @@
-import axios from "axios";
-import type { Message, TravelState } from "@/types";
+import type { Message } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-interface PlanTravelRequest {
-  user_input: string;
-  conversation_history: Pick<Message, "role" | "content">[];
-  optional_details_asked: boolean;
-}
-
-interface PlanTravelResponse {
-  task_id: string;
-  status: string; // Should be "PENDING" initially
-}
-
-export interface PlanStatusResponse {
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-  data?: TravelState; // The final state of the graph
-  error?: string; // Top-level error message if the task failed critically
-}
-
-/**
- * Initiates the travel planning process using the LangGraph backend.
- */
-export const planTravel = async (
-  userInput: string,
-  conversationHistory: Pick<Message, "role" | "content">[],
-  optionalDetailsAsked: boolean
-): Promise<PlanTravelResponse> => {
-  const response = await axios.post<PlanTravelResponse>(
-    `${API_URL}/api/travel-recommendation`,
-    {
-      user_input: userInput,
-      conversation_history: conversationHistory,
-      optional_details_asked: optionalDetailsAsked,
-    } satisfies PlanTravelRequest // Ensure request body matches backend expectation
-  );
-  return response.data;
+// Types to represent the structured data coming from the stream
+// Keep these in sync with the backend event types
+type StreamEventToken = {
+  type: "token";
+  content: string;
 };
 
+type StreamEventToolStart = {
+  type: "tool_start";
+  name: string;
+  input: any;
+};
+
+type StreamEventToolEnd = {
+  type: "tool_end";
+  name: string;
+};
+
+type StreamEventToolCallChunk = {
+  type: "tool_call_chunk";
+  chunk: {
+    name?: string;
+    args?: string;
+    id?: string;
+    index?: number;
+  };
+};
+
+type StreamEventError = {
+  type: "error";
+  message: string;
+};
+
+type StreamEventEnd = {
+  type: "end";
+};
+
+type StreamEvent =
+  | StreamEventToken
+  | StreamEventToolStart
+  | StreamEventToolEnd
+  | StreamEventToolCallChunk
+  | StreamEventError
+  | StreamEventEnd;
+
+// Callbacks for the stream handler
+interface StreamCallbacks {
+  onToken?: (token: string) => void;
+  onToolCallChunk?: (chunk: StreamEventToolCallChunk["chunk"]) => void;
+  onToolStart?: (name: string, input: any) => void;
+  onToolEnd?: (name: string) => void;
+  onError?: (message: string) => void;
+  onEnd?: () => void;
+}
+
 /**
- * Gets the status and result of a travel planning task.
+ * Calls the backend streaming endpoint and processes Server-Sent Events.
  */
-export const getPlanStatus = async (taskId: string): Promise<PlanStatusResponse> => {
-  const response = await axios.get<PlanStatusResponse>(
-    `${API_URL}/api/travel-recommendation/status/${taskId}`
-  );
-  return response.data;
+export const streamRecommendation = async (
+  // Use the updated Message type, selecting necessary fields + optional tool fields
+  messages: Array<
+    Pick<Message, "role" | "content"> & Partial<Pick<Message, "tool_calls" | "tool_call_id">>
+  >,
+  callbacks: StreamCallbacks
+): Promise<void> => {
+  try {
+    const response = await fetch(`${API_URL}/api/chat/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({ messages }), // Send the message history
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorBody}`);
+    }
+
+    if (!response.body) {
+      throw new Error("Response body is null");
+    }
+
+    // Process the stream
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = ""; // Buffer for incoming data chunks
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        // console.log("Stream finished.");
+        break; // Exit the loop when the stream is done
+      }
+
+      // Decode the chunk and add it to the buffer
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete SSE messages (delimit by \n\n)
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        const messageLine = buffer.substring(0, boundary); // Extract the message line
+        buffer = buffer.substring(boundary + 2); // Remove the processed message and \n\n
+
+        if (messageLine.startsWith("data:")) {
+          const jsonData = messageLine.substring(5).trim(); // Remove "data:" prefix
+          if (jsonData) {
+            try {
+              const event: StreamEvent = JSON.parse(jsonData);
+
+              // Call the appropriate callback based on the event type
+              switch (event.type) {
+                case "token":
+                  callbacks.onToken?.(event.content);
+                  break;
+                case "tool_call_chunk":
+                  callbacks.onToolCallChunk?.(event.chunk);
+                  break;
+                case "tool_start":
+                  callbacks.onToolStart?.(event.name, event.input);
+                  break;
+                case "tool_end":
+                  callbacks.onToolEnd?.(event.name);
+                  break;
+                case "error":
+                  console.error("Stream Error Event:", event.message);
+                  callbacks.onError?.(event.message);
+                  break;
+                case "end":
+                  // console.log("Received end event from stream.");
+                  // The finally block handles the actual onEnd callback call
+                  break;
+              }
+            } catch (e) {
+              console.error("Failed to parse stream data:", jsonData, e);
+              callbacks.onError?.(`Failed to parse stream data: ${jsonData}`);
+            }
+          }
+        }
+        // Check for the next message boundary in the updated buffer
+        boundary = buffer.indexOf("\n\n");
+      }
+    }
+    // console.log("Stream processing loop finished.");
+  } catch (error) {
+    console.error("Failed to stream recommendation:", error);
+    callbacks.onError?.(
+      error instanceof Error ? error.message : "An unknown streaming error occurred"
+    );
+  } finally {
+    // console.log("Calling onEnd callback.");
+    // Ensure onEnd is always called, regardless of how the stream finished
+    callbacks.onEnd?.();
+  }
 };

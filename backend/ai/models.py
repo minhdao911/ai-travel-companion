@@ -20,6 +20,6 @@ trackingConfig = (
     else {}
 )
 
-model = ChatOpenAI(
-    model="gpt-4o-mini", openai_api_key=OPENAI_API_KEY, temperature=0, **trackingConfig
+llm = ChatOpenAI(
+    model="gpt-4.1-mini", openai_api_key=OPENAI_API_KEY, temperature=0, **trackingConfig
 )
