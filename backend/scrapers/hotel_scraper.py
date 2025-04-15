@@ -1,118 +1,121 @@
-from playwright.async_api import async_playwright
-from browser_use import Browser, Agent, BrowserConfig
-from ai.models import model
-from scrapers.prompts import hotel_scrape_from_url_prompt
+from scrapers.brightdata_api import BrightDataAPI
+from urllib.parse import urlencode, quote
+import concurrent.futures
 
-class HotelScraper:
-    async def start(self):
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=True)
-        self.context = await self.browser.new_context()
-        self.page = await self.context.new_page()
 
-    async def close(self):
-        try:
-            await self.context.close()
-            await self.browser.close()
-            await self.playwright.stop()
-        except Exception as e:
-            print(f"Error during playwright cleanup: {str(e)}")
-    
-    async def select_dates(self, start_date, end_date):
-        try:
-            await self.page.click('input[aria-label*="Check-in"]')
-            await self.page.wait_for_timeout(1000)
-
-            # Select departure date
-            start_date_element = await self.page.wait_for_selector(f"div[role='gridcell'][data-iso='{start_date}']", timeout=5000)
-            await start_date_element.click()
-            await self.page.wait_for_timeout(1000)
-
-            # Select return date
-            end_date_element = await self.page.wait_for_selector(f"div[role='gridcell'][data-iso='{end_date}']", timeout=5000)
-            await end_date_element.click()
-            await self.page.wait_for_timeout(1000)
-
-            # Close the date picker
-            await self.page.click('header')
-
-            print(f"Selected dates: {start_date} - {end_date}")
-            return True
-        except Exception as e:
-            print(f"Error selecting dates: {str(e)}")
-            return False
-    
-    async def select_num_guests(self, num_guests):
-        try:
-            await self.page.click('button[data-adults]')
-
-            # Wait for the modal to appear
-            count = 1
-            add_button = await self.page.wait_for_selector("button[aria-label*='Add adult']", timeout=5000)
-            while count < num_guests:
-                await add_button.click()
-                count += 1
-
-            # Close the modal
-            await self.page.click('button[data-adults]')
-
-            print(f"Selected number of guests: {num_guests} adults")
-            return True
-        except Exception as e:
-            print(f"Error selecting number of guests: {str(e)}")
-            return False
-        
-    async def fill_hotel_search(self, destination, start_date, end_date, num_guests):
-        try:
-            print("Navigating to Google Hotels")
-            await self.page.goto(f"https://www.google.com/travel/search?q=hotels+in+{destination}")
-
-            # Check if accept cookies button is visible
-            accept_cookies_button = await self.page.wait_for_selector('button[aria-label="Accept all"]', timeout=5000)
-            if accept_cookies_button:
-                await accept_cookies_button.click()
-
-            print("Selecting dates")
-            if not await self.select_dates(start_date, end_date):
-                raise Exception("Error selecting dates")
-            
-            print("Filling number of guests")
-            if num_guests > 1:
-                if not await self.select_num_guests(num_guests):
-                    raise Exception("Error selecting number of guests")
-
-            return self.page.url
-
-        except Exception as e:
-            print(f"Error filling hotel search: {str(e)}")
-            return None
-
-async def scrape_hotels(url, preferences = None):
-    try:
-        config = BrowserConfig(headless=True)
-        browser = Browser(config)
-        agent = Agent(
-            task=hotel_scrape_from_url_prompt(url, preferences),
-            browser=browser,
-            llm=model
+def get_hotel_details(
+    location: str,
+    checkin_date: str,
+    checkout_date: str,
+    num_guests: int,
+    currency: str = "EUR",
+    free_cancellation: bool = False,
+    accommodation_types: list[str] = ["hotel"],
+):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # Submit both search functions to the executor
+        hotels_future = executor.submit(
+            search_hotels,
+            location,
+            checkin_date,
+            checkout_date,
+            num_guests,
+            currency,
+            free_cancellation,
+            accommodation_types,
         )
+        places_future = executor.submit(search_places, location, accommodation_types)
 
-        history = await agent.run()
-        await browser.close()
-        result = history.final_result()
-        return result
-    except Exception as e:
-        print(f"Error scraping hotels: {str(e)}")
-        return None        
+        # Wait for both futures to complete and get the results
+        hotels = hotels_future.result()
+        places = places_future.result()
 
-async def get_hotel_search_url(destination, start_date, end_date, num_guests):
-    try:
-        scraper = HotelScraper()
-        await scraper.start()
-        url = await scraper.fill_hotel_search(destination, start_date, end_date, num_guests)
-        return url
-    except Exception as e:
-        print(f"Error getting hotel URL: {str(e)}")
-    finally:
-        print("Closing browser")
-        await scraper.close()
+    # Handle potential None results if API calls failed
+    hotels = (
+        list(filter(lambda x: x.get("link") is not None, hotels.get("organic", [])))
+        if hotels
+        else []
+    )
+    places = places.get("organic", []) if places else None
+
+    hotel_details = []
+    # Ensure places is searchable, assuming it's a list of dicts
+    if isinstance(places, list) and len(places) > 0:
+        for hotel in hotels:
+            # Find the corresponding place using title
+            place = next(
+                (p for p in places if p.get("title") == hotel.get("title")), None
+            )
+            if place:
+                enriched_hotel = hotel.copy()
+                enriched_hotel["amenities"] = [
+                    tag.get("value_title") for tag in place.get("tags", [])
+                ]
+                categories = place.get("category", [])
+                enriched_hotel["category"] = (
+                    categories[0].get("title") if categories else None
+                )
+                hotel_details.append(enriched_hotel)
+    else:
+        print("Skipping enrichment.")
+        hotel_details = hotels if hotels else []
+
+    return hotel_details
+
+
+def search_hotels(
+    location: str,
+    checkin_date: str,
+    checkout_date: str,
+    num_guests: int,
+    currency: str = "USD",
+    free_cancellation: bool = False,
+    accommodation_types: list[str] = ["hotel"],
+):
+    brightdata_api = BrightDataAPI()
+    accommodation_types_str = " or ".join(accommodation_types)
+    query = urlencode({"q": accommodation_types_str + " in " + location})
+    url = f"https://www.google.com/travel/search?{query}"
+    params = {
+        "brd_dates": f"{checkin_date},{checkout_date}",
+        "brd_occupancy": num_guests,
+        "brd_currency": currency,
+        "brd_free_cancellation": free_cancellation,
+    }
+    return brightdata_api.get_serp_results(url, params)
+
+
+def search_places(
+    location: str, accommodation_types: list[str] = ["hotel"], num_results: int = 30
+):
+    brightdata_api = BrightDataAPI()
+    accommodation_types_str = " or ".join(accommodation_types)
+    query = quote(accommodation_types_str + " in " + location)
+    url = f"https://www.google.com/maps/search/{query}/?num={num_results}"
+    return brightdata_api.get_serp_results(url)
+
+
+def to_markdown(hotel_details: list[dict]) -> str:
+    markdown = ""
+    for hotel in hotel_details:
+        title = hotel.get("title")
+        link = hotel.get("link")
+        markdown += f"**[{title}]({link})**\n" if link else f"**{title}**\n"
+
+        category = hotel.get("category")
+        markdown += f"* **Category:** {category}\n" if category else ""
+
+        price = hotel.get("price")
+        if price:
+            markdown += f"* **Price:** {price}\n"
+
+        amenities = hotel.get("amenities")
+        markdown += f"* **Amenities:** {', '.join(amenities)}\n" if amenities else ""
+
+        rating = hotel.get("rating")
+        reviews_cnt = hotel.get("reviews_cnt")
+        if rating is not None and reviews_cnt is not None:
+            markdown += f"* **Rating:** {rating}/5 ({reviews_cnt} reviews)\n\n"
+        else:
+            markdown += "\n"
+    return markdown

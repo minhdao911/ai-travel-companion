@@ -10,25 +10,18 @@ import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import the backend modules
-from travel.travel_details import generate_conversation_response, get_travel_summary
-from scrapers.flight_scraper import get_flight_search_url, scrape_flights
-from scrapers.hotel_scraper import get_hotel_search_url, scrape_hotels
-from tasks import TaskManager
-from main import MessageItem
-from scrapers.flight_scraper_v2 import FlightScraperV2, to_json, to_markdown
-from scrapers.hotel_scraper_v2 import get_hotel_details
-
-# Create a task manager instance
-task_manager = TaskManager()
+from travel.travel_details import get_travel_details
+from scrapers.flight_scraper import FlightScraper, to_json, to_markdown
+from scrapers.hotel_scraper import get_hotel_details
+from graphs.recommendation import recommendation_graph
 
 
 class Debug:
     def __init__(self):
         self.parser = self._create_parser()
         self.commands = {
-            "health": {"help": "Check health of the API", "args": []},
-            "travel-details": {
-                "help": "Generate travel conversation response",
+            "extract-travel-details": {
+                "help": "Extract travel details from user input",
                 "args": [
                     {
                         "name": "user_input",
@@ -72,16 +65,16 @@ class Debug:
                         "help": "Number of guests",
                     },
                     {
-                        "name": "budget",
-                        "type": int,
-                        "required": False,
-                        "help": "Budget (optional)",
-                    },
-                    {
-                        "name": "preferences",
+                        "name": "seat_class",
                         "type": str,
                         "required": False,
-                        "help": "Travel preferences (optional)",
+                        "help": "Seat class (optional)",
+                    },
+                    {
+                        "name": "direct",
+                        "type": bool,
+                        "required": False,
+                        "help": "Direct flight (optional)",
                     },
                 ],
             },
@@ -113,114 +106,53 @@ class Debug:
                         "help": "Number of guests",
                     },
                     {
-                        "name": "budget",
-                        "type": int,
-                        "required": False,
-                        "help": "Budget (optional)",
-                    },
-                    {
-                        "name": "preferences",
+                        "name": "currency",
                         "type": str,
                         "required": False,
-                        "help": "Travel preferences (optional)",
+                        "help": "Currency code: USD, EUR, GBP, etc. (optional)",
+                    },
+                    {
+                        "name": "free_cancellation",
+                        "type": bool,
+                        "required": False,
+                        "help": "Free cancellation (optional)",
+                    },
+                    {
+                        "name": "accommodation_types",
+                        "type": str,
+                        "required": False,
+                        "help": "List of accommodation types, separated by commas (optional)",
                     },
                 ],
             },
-            "travel-summary": {
-                "help": "Generate travel summary",
+            "plan-travel": {
+                "help": "Generate travel recommendation",
                 "args": [
                     {
-                        "name": "start_date",
+                        "name": "user_input",
                         "type": str,
                         "required": True,
-                        "help": "Start date (YYYY-MM-DD)",
-                    },
-                    {
-                        "name": "end_date",
-                        "type": str,
-                        "required": True,
-                        "help": "End date (YYYY-MM-DD)",
-                    },
-                    {
-                        "name": "num_guests",
-                        "type": int,
-                        "required": True,
-                        "help": "Number of guests",
-                    },
-                    {
-                        "name": "flight_results",
-                        "type": str,
-                        "required": True,
-                        "help": "Flight results string or file path",
-                    },
-                    {
-                        "name": "hotel_results",
-                        "type": str,
-                        "required": True,
-                        "help": "Hotel results string or file path",
-                    },
-                    {
-                        "name": "budget",
-                        "type": int,
-                        "required": False,
-                        "help": "Budget (optional)",
-                    },
-                    {
-                        "name": "preferences",
-                        "type": str,
-                        "required": False,
-                        "help": "Travel preferences (optional)",
-                    },
-                ],
-            },
-            "flights-hotels-summary": {
-                "help": "Search for flights and hotels and generate summary",
-                "args": [
-                    {
-                        "name": "origin",
-                        "type": str,
-                        "required": True,
-                        "help": "Origin city name",
-                    },
-                    {
-                        "name": "destination",
-                        "type": str,
-                        "required": True,
-                        "help": "Destination city name",
-                    },
-                    {
-                        "name": "start_date",
-                        "type": str,
-                        "required": True,
-                        "help": "Start date (YYYY-MM-DD)",
-                    },
-                    {
-                        "name": "end_date",
-                        "type": str,
-                        "required": True,
-                        "help": "End date (YYYY-MM-DD)",
-                    },
-                    {
-                        "name": "num_guests",
-                        "type": int,
-                        "required": True,
-                        "help": "Number of guests",
-                    },
-                    {
-                        "name": "budget",
-                        "type": int,
-                        "required": False,
-                        "help": "Budget (optional)",
-                    },
-                    {
-                        "name": "preferences",
-                        "type": str,
-                        "required": False,
-                        "help": "Travel preferences (optional)",
+                        "help": "User input message",
                     },
                 ],
             },
         }
+
+    def _run_command(self, cmd_name, args):
+        try:
+            namespace = argparse.Namespace(**args)
+            if cmd_name == "health":
+                self._health_check()
+            elif cmd_name == "extract-travel-details":
+                asyncio.run(self._extract_travel_details(namespace))
+            elif cmd_name == "search-flights":
+                asyncio.run(self._search_flights(namespace))
+            elif cmd_name == "search-hotels":
+                asyncio.run(self._search_hotels(namespace))
+            elif cmd_name == "plan-travel":
+                asyncio.run(self._run_recommendation_graph(namespace))
+        except Exception as e:
+            print(f"\nCommand execution failed: {str(e)}")
 
     def _create_parser(self):
         parser = argparse.ArgumentParser(
@@ -263,9 +195,11 @@ class Debug:
         flights_parser.add_argument(
             "--num-guests", type=int, required=True, help="Number of guests"
         )
-        flights_parser.add_argument("--budget", type=int, help="Budget (optional)")
         flights_parser.add_argument(
-            "--preferences", type=str, help="Travel preferences (optional)"
+            "--seat-class", type=str, help="Seat class (optional)"
+        )
+        flights_parser.add_argument(
+            "--direct", type=bool, help="Direct flight (optional)"
         )
 
         # Search hotels command
@@ -282,69 +216,21 @@ class Debug:
         hotels_parser.add_argument(
             "--num-guests", type=int, required=True, help="Number of guests"
         )
-        hotels_parser.add_argument("--budget", type=int, help="Budget (optional)")
         hotels_parser.add_argument(
-            "--preferences", type=str, help="Travel preferences (optional)"
+            "--currency", type=str, help="Currency code: USD, EUR, GBP, etc. (optional)"
+        )
+        hotels_parser.add_argument(
+            "--accommodation-types",
+            type=str,
+            help="List of accommodation types, separated by commas (optional)",
         )
 
-        # Travel summary command
+        # Travel recommendation command
         summary_parser = subparsers.add_parser(
-            "travel-summary", help="Generate travel summary"
+            "plan-travel", help="Generate travel recommendation"
         )
         summary_parser.add_argument(
-            "--destination", type=str, required=True, help="Destination city name"
-        )
-        summary_parser.add_argument(
-            "--start-date", type=str, required=True, help="Start date (YYYY-MM-DD)"
-        )
-        summary_parser.add_argument(
-            "--end-date", type=str, required=True, help="End date (YYYY-MM-DD)"
-        )
-        summary_parser.add_argument(
-            "--num-guests", type=int, required=True, help="Number of guests"
-        )
-        summary_parser.add_argument(
-            "--flight-results",
-            type=str,
-            required=True,
-            help="Flight results string or file path",
-        )
-        summary_parser.add_argument(
-            "--hotel-results",
-            type=str,
-            required=True,
-            help="Hotel results string or file path",
-        )
-        summary_parser.add_argument("--budget", type=int, help="Budget (optional)")
-        summary_parser.add_argument(
-            "--preferences", type=str, help="Travel preferences (optional)"
-        )
-
-        # Flights and hotels summary command
-        flights_hotels_summary_parser = subparsers.add_parser(
-            "flights-hotels-summary",
-            help="Search for flights and hotels and generate summary",
-        )
-        flights_hotels_summary_parser.add_argument(
-            "--origin", type=str, required=True, help="Origin city name"
-        )
-        flights_hotels_summary_parser.add_argument(
-            "--destination", type=str, required=True, help="Destination city name"
-        )
-        flights_hotels_summary_parser.add_argument(
-            "--start-date", type=str, required=True, help="Start date (YYYY-MM-DD)"
-        )
-        flights_hotels_summary_parser.add_argument(
-            "--end-date", type=str, required=True, help="End date (YYYY-MM-DD)"
-        )
-        flights_hotels_summary_parser.add_argument(
-            "--num-guests", type=int, required=True, help="Number of guests"
-        )
-        flights_hotels_summary_parser.add_argument(
-            "--budget", type=int, help="Budget (optional)"
-        )
-        flights_hotels_summary_parser.add_argument(
-            "--preferences", type=str, help="Travel preferences (optional)"
+            "--user-input", type=str, required=True, help="User input message"
         )
 
         # List available commands
@@ -363,16 +249,7 @@ class Debug:
             self.parser.print_help()
             return
 
-        if args.command == "health":
-            self._health_check()
-        elif args.command == "travel-details":
-            asyncio.run(self._travel_details(args))
-        elif args.command == "search-flights":
-            asyncio.run(self._search_flights(args))
-        elif args.command == "search-hotels":
-            asyncio.run(self._search_hotels(args))
-        elif args.command == "travel-summary":
-            asyncio.run(self._travel_summary(args))
+        self._run_command(args.command, args)
 
     def _run_debug_mode(self):
         """Run the application in interactive debug mode"""
@@ -461,23 +338,8 @@ class Debug:
                 # Save arguments for potential reuse
                 previous_args = args.copy()
 
-            # Create namespace object from arguments
-            namespace = argparse.Namespace(**args)
-
             # Execute command
-            try:
-                if cmd_name == "health":
-                    self._health_check()
-                elif cmd_name == "travel-details":
-                    asyncio.run(self._travel_details(namespace))
-                elif cmd_name == "search-flights":
-                    asyncio.run(self._search_flights_v2(namespace))
-                elif cmd_name == "search-hotels":
-                    asyncio.run(self._search_hotels_v2(namespace))
-                elif cmd_name == "travel-summary":
-                    asyncio.run(self._travel_summary(namespace))
-            except Exception as e:
-                print(f"\nCommand execution failed: {str(e)}")
+            self._run_command(cmd_name, args)
 
             # Ask if user wants to retry the command
             retry_choice = input(
@@ -494,55 +356,11 @@ class Debug:
     def _health_check(self):
         print(json.dumps({"status": "ok", "message": "API is running"}, indent=2))
 
-    async def _travel_details(self, args):
+    async def _extract_travel_details(self, args):
         try:
-            conversation_history = []
-
-            # --- Start Interactive Conversation Loop ---
             current_user_input = args.user_input
-            print(f"\nStarting conversation...")
-            print(f"You: {current_user_input}")  # Echo user input
-
-            while True:
-                # Add user message to history
-                conversation_history.append(
-                    MessageItem(role="user", content=current_user_input)
-                )
-
-                # Generate response
-                print("AI is thinking...")
-                # Assuming generate_conversation_response takes List[MessageItem] and returns a dict/object
-                # with 'content' and 'complete' attributes/keys.
-                # Ensure generate_conversation_response is awaitable if called with await
-                response_data = generate_conversation_response(conversation_history)
-
-                # Extract message and completion status
-                ai_message = response_data.message
-                is_complete = response_data.complete
-
-                # Print AI response
-                print(f"AI: {ai_message}")
-
-                # Add AI response to history
-                conversation_history.append(
-                    MessageItem(role="assistant", content=ai_message)
-                )
-
-                # Check if conversation is complete
-                if is_complete:
-                    print("\nConversation complete.")
-                    print(f"Travel preferences: {response_data.travel_preferences}")
-                    break
-
-                # Prompt for next user input
-                next_input = input("You: ").strip()
-                if not next_input:
-                    print("\nEmpty input received. Ending conversation.")
-                    break
-                current_user_input = next_input
-            # --- End Interactive Conversation Loop ---
-
-            print("\nExiting travel details conversation.")
+            response_data = get_travel_details(f"User: {current_user_input}")
+            print(f"Travel details: {response_data}")
 
         except Exception as e:
             print(f"Error during conversation processing: {str(e)}")
@@ -551,44 +369,15 @@ class Debug:
         try:
             print(f"Searching for flights from {args.origin} to {args.destination}...")
 
-            # Get flight search URL
-            url = await get_flight_search_url(
+            scraper = FlightScraper(
                 args.origin,
                 args.destination,
-                args.start_date,
-                args.end_date,
                 args.num_guests,
+                {
+                    "seat_class": args.seat_class,
+                    "direct": args.direct,
+                },
             )
-
-            if not url:
-                print("Error: Failed to get flight search URL")
-                return
-
-            print(f"Flight search URL: {url}")
-
-            # Scrape flights
-            print("Scraping flights...")
-            flight_results = await scrape_flights(url)
-
-            if not flight_results:
-                print("Error: Failed to scrape flights")
-                return
-
-            # Print results
-            print("Flight results:\n")
-            print(flight_results)
-
-            # Save results to file
-            self._save_results_to_file("flight_results", flight_results)
-
-        except Exception as e:
-            print(f"Error: {str(e)}")
-
-    async def _search_flights_v2(self, args):
-        try:
-            print(f"Searching for flights from {args.origin} to {args.destination}...")
-
-            scraper = FlightScraperV2(args.origin, args.destination, args.num_guests)
             outbound_flights = await scraper.get_flight_details(args.start_date)
             outbound_flights_json = to_json(outbound_flights)
             outbound_flights_str = to_markdown(outbound_flights)
@@ -612,12 +401,18 @@ class Debug:
         except Exception as e:
             print(f"Error: {str(e)}")
 
-    async def _search_hotels_v2(self, args):
+    async def _search_hotels(self, args):
         try:
             print(f"Searching for hotels in {args.destination}...")
 
             results = get_hotel_details(
-                args.destination, args.start_date, args.end_date, args.num_guests
+                args.destination,
+                args.start_date,
+                args.end_date,
+                args.num_guests,
+                args.currency,
+                args.free_cancellation,
+                args.accommodation_types,
             )
 
             # Save results to file
@@ -626,93 +421,24 @@ class Debug:
         except Exception as e:
             print(f"Error: {str(e)}")
 
-    async def _search_hotels(self, args):
+    async def _run_recommendation_graph(self, args):
+
         try:
-            print(f"Searching for hotels in {args.destination}...")
-
-            # Get hotel search URL
-            url = await get_hotel_search_url(
-                args.destination, args.start_date, args.end_date, args.num_guests
-            )
-
-            if not url:
-                print("Error: Failed to get hotel search URL")
-                return
-
-            print(f"Hotel search URL: {url}")
-
-            # Scrape hotels
-            print("Scraping hotels...")
-            hotel_results = await scrape_hotels(url)
-
-            if not hotel_results:
-                print("Error: Failed to scrape hotels")
-                return
-
-            # Print results (assuming hotel_results is already JSON serializable)
-            print("\nHotel Results:")
-            print(json.dumps(hotel_results, indent=2))
-
-            # Save results to file
-            self._save_results_to_file("hotel_results", hotel_results)
-
-        except Exception as e:
-            print(f"Error: {str(e)}")
-
-    async def _travel_summary(self, args):
-        try:
-            # Get flight and hotel results
-            flight_results = self._get_file_or_string_content(args.flight_results)
-            hotel_results = self._get_file_or_string_content(args.hotel_results)
-
-            # Prepare model_dump equivalent
-            model_data = {
-                "start_date": args.start_date,
-                "end_date": args.end_date,
-                "num_guests": args.num_guests,
+            inputs = {
+                "conversation_history": [
+                    {
+                        "role": "user",
+                        "content": args.user_input,
+                    }
+                ],
+                "user_input": args.user_input,
+                "optional_details_asked": True,
             }
-
-            if hasattr(args, "budget") and args.budget:
-                model_data["budget"] = args.budget
-
-            if hasattr(args, "preferences") and args.preferences:
-                model_data["preferences"] = args.preferences
-
-            # Generate summary
-            print("Generating travel summary...")
-            result = get_travel_summary(flight_results, hotel_results, **model_data)
-
-            # Print results
-            print("\nTravel Summary:")
-            print(json.dumps(result, indent=2))
-
-        except Exception as e:
-            print(f"Error: {str(e)}")
-
-    async def _flights_hotels_summary(self, args):
-        try:
-            print(f"Searching for flights and hotels in {args.destination}...")
-
-            # Scrape flights
-            print("Scraping flights...")
-            flight_results = await self._search_flights(args)
-            if not flight_results:
-                print("Error: Failed to scrape flights")
-                return
-
-            # Scrape hotels
-            print("Scraping hotels...")
-            hotel_results = await self._search_hotels(args)
-            if not hotel_results:
-                print("Error: Failed to scrape hotels")
-                return
-
-            # Generate summary
-            print("Generating travel summary...")
-            result = self._travel_summary(args)
-
-            # Save results to file
-            self._save_results_to_file("flights_hotels_summary", result)
+            async for output in recommendation_graph.astream(inputs):
+                # Print output from each node
+                for key, value in output.items():
+                    print(f"Output from node '{key}':\n{value}")
+                print("\n---")
 
         except Exception as e:
             print(f"Error: {str(e)}")

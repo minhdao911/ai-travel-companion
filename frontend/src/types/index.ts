@@ -11,51 +11,26 @@ export enum MessageRole {
 }
 
 export enum TaskStatus {
-  Pending = "pending",
-  Processing = "processing",
-  Completed = "completed",
-  Failed = "failed",
+  Pending = "PENDING",
+  Processing = "PROCESSING",
+  Completed = "COMPLETED",
+  Failed = "FAILED",
 }
-
-export enum TaskType {
-  FlightSearch = "flight_search",
-  HotelSearch = "hotel_search",
-  TravelSummary = "travel_summary",
-  TravelDetails = "travel_details",
-}
-
-export type Task = {
-  id?: string;
-  type: TaskType;
-  status: TaskStatus;
-  messageId: string;
-  regenerate?: boolean;
-};
 
 export type Message = {
   id: string;
   role: MessageRole;
   content: string;
   collapsable_content?: string;
-  taskType?: TaskType;
   loading?: boolean;
 };
 
-export type TravelPreferences = {
-  accommodation?: {
-    types?: string[];
-    max_price_per_night?: number;
-    amenities?: string[];
-  };
-  flight?: {
-    class?: "economy" | "premium economy" | "business" | "first";
-    direct?: boolean;
-  };
-  activities?: string[];
-  food_preferences?: string[];
+export type SearchResults = {
+  raw_data: string;
+  json_data: Record<string, any>;
 };
 
-export type TravelContext = {
+export type TravelDetails = {
   start_date: string;
   end_date: string;
   origin_city_name: string;
@@ -65,7 +40,28 @@ export type TravelContext = {
   num_guests: number;
   budget?: number;
   currency?: string;
-  flight_results?: string;
-  hotel_results?: string;
-  summary?: string;
+  accommodation?: {
+    types?: string[];
+    max_price_per_night?: number;
+    amenities?: string[];
+    free_cancellation?: boolean;
+  };
+  flight?: {
+    class?: "economy" | "premium economy" | "business" | "first";
+    direct?: boolean;
+  };
+  activities?: string[];
+  food_preferences?: string[];
+};
+
+export type TravelState = {
+  conversation_history: Pick<Message, "role" | "content">[];
+  user_input?: string;
+  extracted_details?: TravelDetails;
+  flight_search_results?: SearchResults;
+  hotel_search_results?: SearchResults;
+  final_summary?: string;
+  error_message?: string;
+  assistant_message?: string;
+  optional_details_asked?: boolean;
 };

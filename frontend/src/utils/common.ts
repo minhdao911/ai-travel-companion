@@ -1,12 +1,22 @@
-import { TaskType } from "@/types";
+import { marked } from "marked";
 
-export function formatTaskType(taskType: TaskType): string {
-  switch (taskType) {
-    case TaskType.FlightSearch:
-      return "Flight search";
-    case TaskType.HotelSearch:
-      return "Hotel search";
-    default:
-      return taskType;
-  }
+export const generateId = () => {
+  return Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+};
+
+export function createMarkdownRenderder() {
+  const renderer = new marked.Renderer();
+  renderer.link = ({
+    href,
+    title,
+    text,
+  }: {
+    href: string;
+    title?: string | null;
+    text: string;
+  }): string => {
+    const titleAttr = title ? ` title="${title}"` : "";
+    return `<a target="_blank" rel="nofollow" href="${href}"${titleAttr}>${text}</a>`;
+  };
+  return renderer;
 }

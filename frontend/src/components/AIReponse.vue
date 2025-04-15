@@ -2,20 +2,18 @@
 import { ref } from "vue";
 import Button from "./Button.vue";
 import Icon from "./Icon.vue";
-import { MessageRole, TaskType, type Message } from "@/types";
+import { MessageRole, type Message } from "@/types";
 
-const regeneratableTasks = [TaskType.FlightSearch, TaskType.HotelSearch, TaskType.TravelSummary];
-
-const emit = defineEmits<{
-  (e: "regenerate", messageId: string): void;
-}>();
+// const emit = defineEmits<{
+//   (e: "regenerate", messageId: string): void;
+// }>();
 
 const props = defineProps<{
   message: Message;
   isChatLoading: boolean;
 }>();
 
-const isCopied = ref(false);
+// const isCopied = ref(false);
 const isCollapsableContentVisible = ref(false);
 
 const getIconStyle = () => {
@@ -42,17 +40,17 @@ const toggleCollapsableContent = () => {
   isCollapsableContentVisible.value = !isCollapsableContentVisible.value;
 };
 
-const handleCopy = () => {
-  navigator.clipboard.writeText(props.message.content);
-  isCopied.value = true;
-  setTimeout(() => {
-    isCopied.value = false;
-  }, 1000);
-};
+// const handleCopy = () => {
+//   navigator.clipboard.writeText(props.message.content);
+//   isCopied.value = true;
+//   setTimeout(() => {
+//     isCopied.value = false;
+//   }, 1000);
+// };
 
-const handleRegenerate = () => {
-  emit("regenerate", props.message.id);
-};
+// const handleRegenerate = () => {
+//   emit("regenerate", props.message.id);
+// };
 </script>
 
 <template>
@@ -89,15 +87,7 @@ const handleRegenerate = () => {
         ></div>
       </div>
 
-      <div
-        v-if="
-          !props.message.loading &&
-          !props.isChatLoading &&
-          props.message.taskType &&
-          regeneratableTasks.includes(props.message.taskType)
-        "
-        class="flex items-center gap-1"
-      >
+      <!-- <div v-if="!props.message.loading && !props.isChatLoading" class="flex items-center gap-1">
         <Button variant="icon" tooltip tooltipText="Regenerate" @click="handleRegenerate">
           <Icon name="refresh" size="text-base" />
         </Button>
@@ -109,7 +99,7 @@ const handleRegenerate = () => {
         >
           <Icon name="copy" size="text-base" />
         </Button>
-      </div>
+      </div> -->
     </div>
   </div>
 </template>

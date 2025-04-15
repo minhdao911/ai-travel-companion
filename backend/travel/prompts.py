@@ -1,4 +1,4 @@
-def travel_preferences_prompt(input: str) -> str:
+def travel_details_prompt(input: str) -> str:
     return f"""
         Read the following information from the user and extract the data into the structured output fields.
         

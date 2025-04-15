@@ -1,6 +1,6 @@
 import { type Message } from "@/types";
 import { defineStore } from "pinia";
-import { generateId } from "@/utils/id";
+import { generateId } from "@/utils/common";
 
 // Create a factory function for message stores
 export const createChatStore = (id: string) => {
