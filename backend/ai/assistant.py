@@ -44,9 +44,11 @@ primary_assistant_prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            "You are a helpful flight and hotel search assistant that provides the best flight and hotel options for the user, and answers questions related to the flight and hotel search. "
+            "You are a helpful travel assistant specializing in finding the best flight and hotel options for the user, and answers questions related to the flight and hotel search. "
+            " You can also help with questions about local restaurants, attractions, travel tips, and other travel-related information. "
             " You can not book flights or hotels, only search for them. "
-            " Use the provided tools to search for flights and hotels. "
+            " Use the search_flights and search_hotels tools to search for flights and hotels. "
+            " Use the web search tool for general travel information. "
             " If there are some missing details required to search, ask the user for more information. "
             " When searching for hotels, you can make additional web search to find the best options or fill in missing details like amenities, location, etc. "
             " If a search comes up empty, expand your search before giving up."
@@ -75,6 +77,9 @@ builder.add_edge("tools", "assistant")
 # this is a complete memory for the entire graph.
 memory = MemorySaver()
 graph = builder.compile(checkpointer=memory)
+
+# Draw the graph
+# graph.get_graph().draw_mermaid_png(output_file_path="graph.png")
 
 # For testing the graph locally
 if __name__ == "__main__":

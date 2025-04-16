@@ -30,7 +30,7 @@ const handleNewChat = () => {
         :key="chat.id"
         :text="chat.title"
         position="bottom"
-        :hidden="chat.title.length <= 28"
+        :hidden="chat.title.length <= 25"
         :maxWidth="64"
       >
         <RouterLink
