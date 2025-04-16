@@ -2,7 +2,44 @@
 
 This is the FastAPI backend for the AI Travel Companion application.
 
-## Setup
+### Setup
+
+Add environment variables:
+
+```bash
+OPEN_API_KEY=
+# Helicone key for LLM model visibility (Optional)
+HELICONE_API_KEY=
+# BrightData vars for Google Hotels SERP API
+BRIGHT_DATA_API_KEY=
+BRIGHT_DATA_CUSTOMER_ID=
+BRIGHT_DATA_API_ZONE=
+```
+
+Use the provided script for easy setup and execution:
+
+**On macOS/Linux:**
+
+```bash
+cd backend
+chmod +x run_backend.sh
+./run_backend.sh
+```
+
+**On Windows:**
+
+```bash
+cd backend
+run_backend.bat
+```
+
+These scripts automate the following steps:
+
+1. Creating and activating a Python virtual environment (`venv`).
+2. Installing dependencies from `requirements.txt`.
+3. Starting the FastAPI server using `uvicorn main:app --reload`.
+
+Or follow these steps:
 
 1. Create and activate a virtual environment (recommended):
 
@@ -17,46 +54,43 @@ source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Running the Server
-
-Start the development server:
+3. Start the development server:
 
 ```bash
 uvicorn main:app --reload
 ```
 
-The server will start at http://localhost:8000
+The server will start at http://localhost:8000.
 
-## Debug Mode
+### Debug Mode
 
-The backend includes an interactive debug mode to test API functions directly from the terminal without running the full server. This is useful for testing individual backend functions in isolation.
+The backend includes an interactive debug mode to test functions directly from the terminal without running the full server. This is useful for testing individual backend functions in isolation.
 
-### Running Debug Mode
+#### Running Debug Mode
 
-#### On macOS/Linux:
+##### On macOS/Linux:
 
 ```bash
 chmod +x debug.sh
 ./debug.sh
 ```
 
-#### On Windows:
+##### On Windows:
 
 ```bash
 debug.bat
 ```
 
-### Available Commands
+#### Available Commands
 
 In debug mode, you can test the following functions:
 
 1. **health** - Check health of the API
-2. **travel-details** - Generate travel conversation response
-3. **search-flights** - Search for flights
-4. **search-hotels** - Search for hotels
-5. **travel-summary** - Generate travel summary
+2. **search-flights** - Search for flights
+3. **search-hotels** - Search for hotels
+4. **get-summary** - Get short summary based on input
 
-### Features
+#### Features
 
 - **Interactive Interface**: Select commands from a menu and get prompted for required parameters
 - **Retry Functionality**: After executing a command, you can:
@@ -67,7 +101,7 @@ In debug mode, you can test the following functions:
 - **Parameter Validation**: The debug mode validates parameter types and required fields
 - **File Output**: Results from commands like search-flights and search-hotels are saved as text files in the `dumps` folder (created automatically if it doesn't exist)
 
-### Example Usage
+#### Example Usage
 
 To test flight search functionality:
 
@@ -79,7 +113,7 @@ To test flight search functionality:
 
 The flight search results will be saved to `backend/dumps/flight_results_[timestamp].txt`.
 
-## API Documentation
+### API Documentation
 
 Once the server is running, you can access:
 

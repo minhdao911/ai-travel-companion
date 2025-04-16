@@ -1,17 +1,16 @@
 # AI Travel Companion
 
-A web application with a FastAPI backend and Vue.js frontend for exploring travel destinations.
+An application leveraging AI to help users plan their travel, featuring a FastAPI backend powered by LangChain and LangGraph, and a Vue.js frontend.
 
-## Project Structure
+### Demo
 
-- `frontend/`: Vue.js frontend with Tailwind CSS for styling
-- `backend/`: FastAPI backend providing travel destination data
+[Demo Video](https://github.com/user-attachments/assets/bfb33bc5-899b-412c-bbb2-9dafd9eb096a)
 
-## Running the Application
+### Running the Application
 
-### Quick Start (Recommended)
+#### Quick Start
 
-Make sure the script is executable:
+Ensure the main run script is executable:
 
 ```bash
 chmod +x run_app.sh
@@ -31,98 +30,50 @@ Run the entire application (both frontend and backend) with a single command:
 run_app.bat
 ```
 
-This will start both the backend server and the frontend development server. The application will be available at http://localhost:5173
+This script handles the setup and execution of both the backend API server and the frontend development server. The application will be available at http://localhost:5173, with the backend running on http://localhost:8000.
 
-### Manual Setup
+#### Manual Setup
 
-If you prefer to run the frontend and backend separately, follow these instructions:
+If you prefer to run the frontend and backend separately, check out the setup in `backend` and `frontend` folders.
 
-#### Backend Setup
+### AI Assistant Flow
 
-Make sure the script is executable:
+The core of the backend is an AI assistant built using LangGraph. This allows for a stateful, agentic workflow where the AI can use tools to fulfill user requests.
 
-```bash
-cd backend
-chmod +x run_backend.sh
-```
+The flow is visualized below:
 
-Run the backend API server:
+![LangGraph Flow](https://github.com/user-attachments/assets/33fc7c1b-8a5d-4b11-9f5c-dc04759c96d0)
 
-**On macOS/Linux:**
+1.  **User Request**: The user sends a message via the frontend chat interface.
+2.  **Assistant Node**: The request is processed by the main assistant node, which uses a language model (LLM) to understand the intent and decide the next step.
+3.  **Tool Decision**: If the assistant determines it needs external information (like flight prices, hotel availability, or general web searches), it decides which tool(s) to use.
+4.  **Tools Node**: The appropriate tool(s) (e.g., `search_flights`, `search_hotels`, `DuckDuckGoSearchRun`) are executed with the necessary parameters derived from the user request.
+5.  **Tool Result**: The output from the tool is sent back to the assistant node.
+6.  **Response Generation**: The assistant processes the tool results and generates a response for the user.
+7.  **Streaming Response**: The response (including intermediate steps like tool usage) is streamed back to the frontend.
 
-```bash
-./run_backend.sh
-```
+This cycle can repeat if multiple tool calls are needed to satisfy the user's request. The state (conversation history) is managed by LangGraph's checkpointer.
 
-**On Windows:**
+### Testing the Application
 
-```bash
-run_backend.bat
-```
+1.  Start the application using either the quick start or manual setup method.
+2.  Visit http://localhost:5173 in your browser.
+3.  Interact with the chat interface to ask for travel recommendations, flight/hotel searches, or general travel questions.
+4.  Observe the streamed responses and potential tool usage indicators.
 
-The script includes the steps as follows:
+### Key Takeaways:
 
-1. Navigate to the backend directory:
+Integrating real-time flight and hotel data presented several challenges and led to iterative improvements:
 
-```bash
-cd backend
-```
+- **Flight Data:**
 
-2. Create and activate a virtual environment:
+  - **Initial Approach:** The first attempt involved using Playwright to automate interactions with Google Flights (generating the search URL based on user input) and then using Browser Use to scrape the resulting page.
+  - **Challenges:** Automating Google pages with Playwright is quite unpredictable and prone to failures. Furthermore, the browser automation approach was slow due to the multi-step process, and the large context accumulated after each step significantly increased LLM request costs.
+  - **Revised Approach:** After doing some research on the structure of Google Flights URLs, it's possible to construct these URLs directly from user input. There is a library called `fast-flights` which support this and then flight data can be extracted from the page content using parsing tools like BeautifulSoup or selectolax.
+  - **Outcome:** This revised method is significantly faster, virtually cost-free (no LLM calls needed for scraping), and provides comparable flight data quality.
 
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-4. Start the FastAPI server:
-
-```bash
-uvicorn main:app --reload
-```
-
-The backend will be available at http://localhost:8000
-
-You can view the API documentation at:
-
-- http://localhost:8000/docs
-- http://localhost:8000/redoc
-
-#### Frontend Setup
-
-1. In a new terminal, navigate to the frontend directory:
-
-```bash
-cd frontend
-```
-
-2. Install dependencies:
-
-```bash
-npm install
-```
-
-3. Start the development server:
-
-```bash
-npm run dev
-```
-
-The frontend will be available at http://localhost:5173
-
-## Testing the Application
-
-1. Visit http://localhost:5173 in your browser
-2. Navigate to the "Destinations" page using the navigation menu
-3. You should see destination cards loaded from the backend API
-
-## API Endpoints
-
-- `GET /api/health`: Health check endpoint
-- `GET /api/destinations`: Get a list of travel destinations
+- **Hotel Data:**
+  - **Challenges:** Constructing Google Hotels URLs directly is difficult due to numerous undocumented, encoded parameters likely used internally by Google. While Playwright could potentially fill the search form to get a results page URL, scraping the hotel results page is also challenging. HTML elements lack stable attributes, and CSS classes change frequently, making extraction brittle.
+  - **Chosen Approach:** To balance cost, speed, and reliability, SERP API can be a reasonable option. BrightData SERP API are used for hotel searches.
+  - **Limitations:** While functional, BrightData Google Hotels SERP API has many drawbacks. The documentation is lacking, the returned data is relatively basic (e.g., missing amenities and hotel details like check-in check-out time, etc.), and filtering options are limited.
+  - **Mitigation & Future Work:** The assistant can supplement the basic hotel data using its web search tool. However, the initial data limitations might affect the quality of recommendations. Exploring alternative SERP APIs or refining scraping techniques could be future improvements.

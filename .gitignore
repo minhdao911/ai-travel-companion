@@ -40,3 +40,6 @@
 **/.venv
 **/ENV/
 **/dumps/
+
+# Cursor
+.cursorignore

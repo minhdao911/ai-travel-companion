@@ -107,7 +107,7 @@ async def health_check():
 
 @app.post("/api/chat/summary")
 async def get_chat_summary(request: SummaryRequest):
-    print(f"Received summary request: {request}")
+    """Get a short summary of the user's input."""
     summary = get_summary(request.user_input)
     if summary:
         return {"summary": summary}
