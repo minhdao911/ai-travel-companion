@@ -1,44 +1,79 @@
 import { type Message } from "@/types";
 import { defineStore } from "pinia";
-import { generateId } from "@/utils/common";
+
+type Chat = {
+  id: string;
+  title: string;
+  messages: Message[];
+  loading: boolean;
+};
 
 // Create a factory function for message stores
 export const createChatStore = (id: string) => {
   return defineStore(id, {
     state: () => ({
-      messages: [] as Message[],
-      loading: false,
+      chats: [] as Chat[],
     }),
     actions: {
-      addMessage(message: Omit<Message, "id"> & { id?: string }) {
-        this.messages.push({
-          id: message.id || generateId(),
-          ...message,
+      getChat(chatId: string) {
+        return this.chats.find((c) => c.id === chatId);
+      },
+      addChat(chatId: string) {
+        this.chats.unshift({
+          id: chatId,
+          title: "New Chat",
+          messages: [],
+          loading: false,
         });
       },
-      updateMessage(id: string, data: Partial<Message>) {
-        const index = this.messages.findIndex((m) => m.id === id);
-        if (index !== -1) {
-          this.messages[index] = { ...this.messages[index], ...data };
+      updateChat(chatId: string, data: Partial<Chat>) {
+        const chat = this.chats.find((c) => c.id === chatId);
+        if (chat) {
+          Object.assign(chat, data);
         }
       },
-      removeMessage(id: string) {
-        this.messages = this.messages.filter((m) => m.id !== id);
+      addMessage(chatId: string, message: Message) {
+        const chat = this.chats.find((c) => c.id === chatId);
+        if (chat) {
+          chat.messages.push(message);
+        } else {
+          this.chats.push({
+            id: chatId,
+            title: "New Chat",
+            messages: [message],
+            loading: false,
+          });
+        }
       },
-      clearMessages() {
-        this.messages = [];
+      updateMessage(chatId: string, messageId: string, data: Partial<Message>) {
+        const chat = this.chats.find((c) => c.id === chatId);
+        if (chat) {
+          const index = chat.messages.findIndex((m) => m.id === messageId);
+          if (index !== -1) {
+            chat.messages[index] = { ...chat.messages[index], ...data };
+          }
+        }
       },
-      setLoading(loading: boolean) {
-        this.loading = loading;
+      removeMessage(chatId: string, messageId: string) {
+        const chat = this.chats.find((c) => c.id === chatId);
+        if (chat) {
+          chat.messages = chat.messages.filter((m) => m.id !== messageId);
+        }
       },
-      resetChat() {
-        this.clearMessages();
-        this.setLoading(false);
+      clearMessages(chatId: string) {
+        const chat = this.chats.find((c) => c.id === chatId);
+        if (chat) {
+          chat.messages = [];
+        }
+      },
+      setLoading(chatId: string, loading: boolean) {
+        const chat = this.chats.find((c) => c.id === chatId);
+        if (chat) {
+          chat.loading = loading;
+        }
       },
     },
   });
 };
 
-// Create specific store instances
-export const useAgentChatStore = createChatStore("agent_chat_store");
-export const useAssistantChatStore = createChatStore("assistant_chat_store");
+export const useChatStore = createChatStore("chat_store");

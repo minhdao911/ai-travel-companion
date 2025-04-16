@@ -11,8 +11,8 @@ from langchain_core.messages import (
     ToolMessage,
     BaseMessage,
 )
-
-from graphs.assistant import (
+from ai.summary import get_summary
+from ai.assistant import (
     graph as assistant_graph,
 )
 
@@ -28,13 +28,12 @@ app.add_middleware(
 )
 
 
-@app.get("/api/health")
-async def health_check():
-    return {"status": "ok", "message": "API is running"}
-
-
 class StreamRequest(BaseModel):
     messages: List[Dict[str, Any]]
+
+
+class SummaryRequest(BaseModel):
+    user_input: str
 
 
 def _convert_message_dicts_to_objects(
@@ -99,6 +98,21 @@ def _convert_message_dicts_to_objects(
 
     print(f"Converted LangChain messages: {output_messages}")
     return output_messages
+
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "message": "API is running"}
+
+
+@app.post("/api/chat/summary")
+async def get_chat_summary(request: SummaryRequest):
+    print(f"Received summary request: {request}")
+    summary = get_summary(request.user_input)
+    if summary:
+        return {"summary": summary}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to get chat summary")
 
 
 @app.post("/api/chat/stream")

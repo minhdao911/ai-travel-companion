@@ -1,8 +1,3 @@
-export enum Tabs {
-  FlightsAndHotels = "flightsAndHotels",
-  Assistant = "assistant",
-}
-
 export enum MessageRole {
   User = "user",
   Assistant = "assistant",

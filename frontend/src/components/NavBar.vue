@@ -1,25 +1,12 @@
 <script setup lang="ts">
 import { RouterLink, useRoute } from "vue-router";
 import Button from "./Button.vue";
-import Icon from "./Icon.vue";
 import router from "@/router";
-import { useAgentChatStore, useAssistantChatStore } from "@/stores/chat";
+import { useChatStore } from "@/stores/chat";
+import { v4 as uuidv4 } from "uuid";
+import Tooltip from "./Tooltip.vue";
 
-const agentChatStore = useAgentChatStore();
-const assistantChatStore = useAssistantChatStore();
-
-const links = [
-  {
-    name: "Flights and Hotels",
-    icon: "flight",
-    href: "/",
-  },
-  {
-    name: "Assistant",
-    icon: "chat",
-    href: "/assistant",
-  },
-];
+const chatStore = useChatStore();
 
 const isActiveLink = (path: string) => {
   const route = useRoute();
@@ -27,33 +14,36 @@ const isActiveLink = (path: string) => {
 };
 
 const handleNewChat = () => {
-  // Navigate to home page
-  router.push("/");
-
-  // Clear the chat state
-  agentChatStore.resetChat();
-  assistantChatStore.resetChat();
+  const id = uuidv4();
+  router.push(`/chat/${id}`);
+  chatStore.addChat(id);
 };
 </script>
 
 <template>
-  <nav class="flex flex-col gap-6 p-4 min-w-64 h-full text-white">
+  <nav class="flex flex-col gap-6 p-4 w-68 h-full text-white flex-shrink-0">
     <Button variant="primary" @click="handleNewChat">New Chat</Button>
     <div class="flex flex-col gap-2.5 w-full">
-      <p class="font-medium">Features</p>
-      <RouterLink
-        v-for="link in links"
-        :key="link.name"
-        :to="link.href"
-        class="flex items-center gap-2 p-2 px-4 rounded-lg"
-        :class="{
-          'text-blue bg-dark-400': isActiveLink(link.href),
-          'text-gray-500 hover:text-blue hover:bg-dark-400': !isActiveLink(link.href),
-        }"
+      <p class="text-sm font-medium">History</p>
+      <Tooltip
+        v-for="chat in chatStore.chats"
+        :key="chat.id"
+        :text="chat.title"
+        position="bottom"
+        :hidden="chat.title.length <= 28"
+        :maxWidth="64"
       >
-        <Icon :name="link.icon" size="text-base" />
-        <p>{{ link.name }}</p>
-      </RouterLink>
+        <RouterLink
+          :to="`/chat/${chat.id}`"
+          class="relative flex items-center gap-2 p-2 px-4 rounded-lg group"
+          :class="{
+            'text-blue bg-dark-400': isActiveLink(`/chat/${chat.id}`),
+            'text-gray-500 hover:text-blue hover:bg-dark-400': !isActiveLink(`/chat/${chat.id}`),
+          }"
+        >
+          <p class="truncate">{{ chat.title }}</p>
+        </RouterLink>
+      </Tooltip>
     </div>
   </nav>
 </template>

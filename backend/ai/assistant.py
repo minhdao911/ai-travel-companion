@@ -76,7 +76,7 @@ builder.add_edge("tools", "assistant")
 memory = MemorySaver()
 graph = builder.compile(checkpointer=memory)
 
-
+# For testing the graph locally
 if __name__ == "__main__":
     import asyncio
     from langchain_core.messages import HumanMessage

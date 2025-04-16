@@ -12,6 +12,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import the backend modules
 from tools.flight_scraper import FlightScraper, to_json, to_markdown
 from tools.hotel_scraper import get_hotel_details
+from ai.summary import get_summary
 
 
 class Debug:
@@ -112,6 +113,17 @@ class Debug:
                     },
                 ],
             },
+            "get-summary": {
+                "help": "Get a summary of user input",
+                "args": [
+                    {
+                        "name": "user_input",
+                        "type": str,
+                        "required": True,
+                        "help": "User input",
+                    },
+                ],
+            },
         }
 
     def _run_command(self, cmd_name, args):
@@ -123,6 +135,8 @@ class Debug:
                 asyncio.run(self._search_flights(namespace))
             elif cmd_name == "search-hotels":
                 asyncio.run(self._search_hotels(namespace))
+            elif cmd_name == "get-summary":
+                asyncio.run(self._get_summary(namespace))
         except Exception as e:
             print(f"\nCommand execution failed: {str(e)}")
 
@@ -187,6 +201,14 @@ class Debug:
             "--accommodation-types",
             type=str,
             help="List of accommodation types, separated by commas (optional)",
+        )
+
+        # Get summary command
+        summary_parser = subparsers.add_parser(
+            "get-summary", help="Get a summary of user input"
+        )
+        summary_parser.add_argument(
+            "--user_input", type=str, required=True, help="User input"
         )
 
         # List available commands
@@ -371,6 +393,12 @@ class Debug:
 
         except Exception as e:
             print(f"Error: {str(e)}")
+
+    async def _get_summary(self, args):
+        print(f"Getting summary of user input: {args.user_input}")
+
+        summary = get_summary(args.user_input)
+        print(f"Summary: {summary}")
 
     def _get_file_or_string_content(self, content):
         """Helper function to get content from a file path or string"""

@@ -450,7 +450,7 @@ def search_flights(
         destination_airport_code: The IATA code of the destination airport.
         date: The date of the flight in YYYY-MM-DD format.
         num_guests: The number of guests on the flight.
-        seat_class: The class of seat on the flight.
+        seat_class: The class of seat on the flight (economy, premium-economy, business, first).
         direct: Whether the flight is direct.
     Returns:
         A list of dictionaries containing the flight details.

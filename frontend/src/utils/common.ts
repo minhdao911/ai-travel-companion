@@ -1,9 +1,5 @@
 import { marked } from "marked";
 
-export const generateId = () => {
-  return Date.now().toString() + Math.floor(Math.random() * 1000).toString();
-};
-
 export function createMarkdownRenderder() {
   const renderer = new marked.Renderer();
   renderer.link = ({

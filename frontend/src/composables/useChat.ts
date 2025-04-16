@@ -1,14 +1,15 @@
 import { ref, computed } from "vue";
-import { useAgentChatStore } from "@/stores/chat";
+import type { Ref } from "vue";
+import { useChatStore } from "@/stores/chat";
 import { streamRecommendation } from "@/services/api";
-import { generateId } from "@/utils/common";
+import { v4 as uuidv4 } from "uuid";
 import { MessageRole } from "@/types";
 
 /**
  * Composable for managing the travel planning chat interface using streaming.
  */
-export function useChat() {
-  const agentChatStore = useAgentChatStore();
+export function useChat(chatId: Ref<string>) {
+  const chatStore = useChatStore();
 
   const input = ref("");
   const isLoading = ref(false);
@@ -17,17 +18,18 @@ export function useChat() {
     if (!input.value.trim() || isLoading.value) return;
 
     const userInput = input.value;
-    const userMessageId = generateId();
+    const userMessageId = uuidv4();
     input.value = "";
 
-    agentChatStore.addMessage({
+    chatStore.addMessage(chatId.value, {
       id: userMessageId,
       role: MessageRole.User,
       content: userInput,
     });
 
     // Prepare conversation history
-    const conversationHistory = agentChatStore.messages.map((msg) => ({
+    const messages = chatStore.getChat(chatId.value)?.messages || [];
+    const conversationHistory = messages.map((msg) => ({
       role: msg.role,
       content: msg.content, // Send raw content
       ...(msg.role === MessageRole.Assistant && msg.tool_calls && { tool_calls: msg.tool_calls }),
@@ -36,8 +38,8 @@ export function useChat() {
     }));
 
     // Add placeholder for assistant response
-    const assistantMessageId = generateId();
-    agentChatStore.addMessage({
+    const assistantMessageId = uuidv4();
+    chatStore.addMessage(chatId.value, {
       id: assistantMessageId,
       role: MessageRole.Assistant,
       content: "",
@@ -49,10 +51,10 @@ export function useChat() {
     await streamRecommendation(conversationHistory, {
       onToken: async (token) => {
         // Find the message using store's messages array
-        const existingMessage = agentChatStore.messages.find((m) => m.id === assistantMessageId);
+        const existingMessage = messages.find((m) => m.id === assistantMessageId);
         if (existingMessage) {
           const updatedContent = existingMessage.content + token;
-          agentChatStore.updateMessage(assistantMessageId, {
+          chatStore.updateMessage(chatId.value, assistantMessageId, {
             content: updatedContent,
             loading: true,
           });
@@ -67,14 +69,14 @@ export function useChat() {
       },
       onError: (errorMessage) => {
         console.error("Streaming Error:", errorMessage);
-        agentChatStore.updateMessage(assistantMessageId, {
+        chatStore.updateMessage(chatId.value, assistantMessageId, {
           content: `Sorry, an error occurred: ${errorMessage}`,
           loading: false,
         });
         isLoading.value = false;
       },
       onEnd: () => {
-        agentChatStore.updateMessage(assistantMessageId, {
+        chatStore.updateMessage(chatId.value, assistantMessageId, {
           loading: false,
         });
         isLoading.value = false;
@@ -85,7 +87,7 @@ export function useChat() {
 
   return {
     input,
-    messages: computed(() => agentChatStore.messages),
+    messages: computed(() => chatStore.getChat(chatId.value)?.messages || []),
     isLoading: computed(() => isLoading.value),
     handleInputEnter,
   };

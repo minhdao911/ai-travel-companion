@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { useTextareaAutosize } from "@vueuse/core";
-import { Tabs } from "@/types";
 import { computed, ref, watch } from "vue";
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 const props = defineProps<{
   placeholder: string;
-  activeTab: Tabs;
   modelValue: string;
   disabled?: boolean;
   onEnter: () => void;

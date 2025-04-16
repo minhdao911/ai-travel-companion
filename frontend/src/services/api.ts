@@ -158,3 +158,20 @@ export const streamRecommendation = async (
     callbacks.onEnd?.();
   }
 };
+
+export const getChatTitle = async (userInput: string): Promise<string> => {
+  const response = await fetch(`${API_URL}/api/chat/summary`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ user_input: userInput }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to get chat title");
+  }
+
+  const data = await response.json();
+  return data.summary;
+};
