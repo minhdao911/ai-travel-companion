@@ -2,6 +2,7 @@
 import TextInput from "@/components/TextInput.vue";
 import Welcome from "@/components/Welcome.vue";
 import ChatInterface from "@/components/ChatInterface.vue";
+import Container from "@/components/Container.vue";
 import { useChat } from "@/composables/useChat";
 import { useRoute, useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
@@ -49,7 +50,7 @@ watch(
 </script>
 
 <template>
-  <main class="flex flex-col h-full w-full bg-dark-800 rounded-lg px-8 pb-4">
+  <Container>
     <div class="flex flex-col justify-between w-full h-full">
       <Welcome v-if="messages.length === 0">
         <p class="text-gray-500 max-w-xl text-center">
@@ -68,5 +69,5 @@ watch(
         :disabled="isLoading"
       />
     </div>
-  </main>
+  </Container>
 </template>

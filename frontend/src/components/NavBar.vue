@@ -26,6 +26,7 @@ const handleNewChat = () => {
     <div class="flex flex-col gap-2.5 w-full">
       <p class="text-sm font-medium">History</p>
       <Tooltip
+        v-if="chatStore.chats.length > 0"
         v-for="chat in chatStore.chats"
         :key="chat.id"
         :text="chat.title"
@@ -44,6 +45,7 @@ const handleNewChat = () => {
           <p class="truncate">{{ chat.title }}</p>
         </RouterLink>
       </Tooltip>
+      <p v-else class="text-sm text-gray-500 italic">Empty :((, create new chat to start</p>
     </div>
   </nav>
 </template>

@@ -60,7 +60,7 @@ interface StreamCallbacks {
 /**
  * Calls the backend streaming endpoint and processes Server-Sent Events.
  */
-export const streamRecommendation = async (
+export const streamChat = async (
   // Use the updated Message type, selecting necessary fields + optional tool fields
   messages: Array<
     Pick<Message, "role" | "content"> & Partial<Pick<Message, "tool_calls" | "tool_call_id">>

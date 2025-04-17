@@ -1,7 +1,7 @@
 import { ref, computed } from "vue";
 import type { Ref } from "vue";
 import { useChatStore } from "@/stores/chat";
-import { streamRecommendation } from "@/services/api";
+import { streamChat } from "@/services/api";
 import { v4 as uuidv4 } from "uuid";
 import { MessageRole } from "@/types";
 
@@ -48,7 +48,7 @@ export function useChat(chatId: Ref<string>) {
     isLoading.value = true;
 
     // --- Call Streaming API ---
-    await streamRecommendation(conversationHistory, {
+    await streamChat(conversationHistory, {
       onToken: async (token) => {
         // Find the message using store's messages array
         const existingMessage = messages.find((m) => m.id === assistantMessageId);
