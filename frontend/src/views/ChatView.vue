@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Container from "@/components/Container.vue";
 import TextInput from "@/components/TextInput.vue";
 import Welcome from "@/components/Welcome.vue";
 import ChatInterface from "@/components/ChatInterface.vue";

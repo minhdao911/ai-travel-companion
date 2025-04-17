@@ -2,15 +2,35 @@
 import ChatBubble from "@/components/ChatBubble.vue";
 import AIReponse from "@/components/AIReponse.vue";
 import type { Message } from "@/types";
+import { ref, watch, nextTick } from "vue";
 
 const props = defineProps<{
   messages: Message[];
   isLoading: boolean;
 }>();
+
+const chatContainer = ref<HTMLElement | null>(null);
+
+const scrollToBottom = () => {
+  // Make sure DOM is updated before scrolling
+  nextTick(() => {
+    if (chatContainer.value) {
+      chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+    }
+  });
+};
+
+watch(
+  () => props.messages,
+  () => {
+    scrollToBottom();
+  },
+  { deep: true }
+);
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col gap-8 py-8 overflow-y-auto hidden-scrollbar">
+  <div ref="chatContainer" class="flex-1 flex flex-col gap-8 py-8 overflow-y-auto hidden-scrollbar">
     <template v-for="message in props.messages" :key="message.id">
       <!-- Use ChatBubble for user messages -->
       <ChatBubble v-if="message.role === 'user'" :content="message.content" />

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useTextareaAutosize } from "@vueuse/core";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onMounted, nextTick } from "vue";
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
@@ -15,17 +15,11 @@ const emit = defineEmits<{
   "update:modelValue": [value: string];
 }>();
 
-// Define methods to expose to parent components
 const focus = () => {
   if (textareaRef.value) {
     textareaRef.value.focus();
   }
 };
-
-// Expose the focus method to parent components
-defineExpose({
-  focus,
-});
 
 // Create a computed property for two-way binding
 const inputValue = computed({
@@ -45,12 +39,33 @@ watch(
   { immediate: true }
 );
 
+// Focus the textarea when not disabled
+watch(
+  () => props.disabled,
+  (isDisabled) => {
+    if (!isDisabled) {
+      nextTick(() => {
+        focus();
+      });
+    }
+  }
+);
+
+// Ensure proper initial focus state when component is mounted
+onMounted(() => {
+  if (!props.disabled) {
+    nextTick(() => {
+      focus();
+    });
+  }
+});
+
 const handleEnter = (event: KeyboardEvent) => {
+  // Let Shift+Enter behavior happen naturally
   if (!event.shiftKey) {
     event.preventDefault();
     props.onEnter();
   }
-  // Let Shift+Enter behavior happen naturally
 };
 </script>
 
