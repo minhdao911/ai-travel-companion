@@ -1,4 +1,5 @@
 import { marked } from "marked";
+import { sha256 } from "js-sha256";
 
 export function createMarkdownRenderder() {
   const renderer = new marked.Renderer();
@@ -16,3 +17,7 @@ export function createMarkdownRenderder() {
   };
   return renderer;
 }
+
+export const hash = (input: string) => {
+  return sha256(input);
+};

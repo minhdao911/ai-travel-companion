@@ -1,9 +1,14 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import uuid
 import json
+import os
+from datetime import timedelta, datetime
+from jose import jwt
+from dotenv import load_dotenv
 from starlette.responses import StreamingResponse
 from langchain_core.messages import (
     HumanMessage,
@@ -15,6 +20,8 @@ from ai.summary import get_summary
 from ai.assistant import (
     graph as assistant_graph,
 )
+
+load_dotenv()
 
 app = FastAPI(title="AI Travel Companion API")
 
@@ -34,6 +41,38 @@ class StreamRequest(BaseModel):
 
 class SummaryRequest(BaseModel):
     user_input: str
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now() + expires_delta
+    else:
+        expire = datetime.now() + timedelta(minutes=expires_delta)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(
+        to_encode, os.getenv("JWT_SECRET_KEY"), algorithm=os.getenv("JWT_ALGORITHM")
+    )
+    return encoded_jwt
+
+
+def verify_token(request: Request):
+    try:
+        access_token = request.cookies.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=401, detail="Missing authentication token")
+
+        payload = jwt.decode(
+            access_token,
+            os.getenv("JWT_SECRET_KEY"),
+            algorithms=[os.getenv("JWT_ALGORITHM")],
+        )
+        username: str = payload.get("sub")
+        if username != os.getenv("ADMIN_USERNAME"):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        return True
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 
 def _convert_message_dicts_to_objects(
@@ -105,10 +144,50 @@ async def health_check():
     return {"status": "ok", "message": "API is running"}
 
 
+@app.post("/api/verify-admin")
+async def verify_admin(
+    form_data: OAuth2PasswordRequestForm = Depends(), response: Response = None
+):
+    if form_data.username == os.getenv(
+        "ADMIN_USERNAME"
+    ) and form_data.password == os.getenv("ADMIN_PASSWORD"):
+        access_token_expires = timedelta(
+            minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+        )
+        access_token = create_access_token(
+            data={"sub": "admin"}, expires_delta=access_token_expires
+        )
+
+        is_prod = os.getenv("ENVIRONMENT", "development") == "production"
+
+        # Set the cookie with appropriate settings
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=is_prod,
+            samesite="Lax",
+            max_age=int(access_token_expires.total_seconds()),
+            path="/",
+        )
+
+        return {"status": "ok", "is_admin": True}
+    else:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@app.get("/api/check-admin")
+async def check_admin(request: Request):
+    is_valid = verify_token(request)
+    return {"status": "ok", "is_admin": is_valid}
+
+
 @app.post("/api/chat/summary")
-async def get_chat_summary(request: SummaryRequest):
+async def get_chat_summary(request: Request, summary_request: SummaryRequest):
     """Get a short summary of the user's input."""
-    summary = get_summary(request.user_input)
+    verify_token(request)
+
+    summary = get_summary(summary_request.user_input)
     if summary:
         return {"summary": summary}
     else:
@@ -116,13 +195,17 @@ async def get_chat_summary(request: SummaryRequest):
 
 
 @app.post("/api/chat/stream")
-async def stream_chat(request: StreamRequest):
+async def stream_chat(request: Request, stream_request: StreamRequest):
     """Streams responses for the recommendation assistant using Server-Sent Events."""
+    verify_token(request)
+
     thread_id = f"stream_{uuid.uuid4()}"
     print(f"Received stream request, assigning Thread ID: {thread_id}")
 
     try:
-        graph_input = {"messages": _convert_message_dicts_to_objects(request.messages)}
+        graph_input = {
+            "messages": _convert_message_dicts_to_objects(stream_request.messages)
+        }
 
         if not graph_input["messages"]:
             print(f"[Thread {thread_id}] No valid messages found after conversion.")

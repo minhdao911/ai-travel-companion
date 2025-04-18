@@ -26,7 +26,7 @@ const getVariantClasses = () => {
     case "primary":
       return "bg-yellow-dark border-yellow-light text-white";
     case "secondary":
-      return "bg-dark-400 text-gray-500 border-transparent";
+      return "bg-dark-400 text-blue border-dark-200";
     case "icon":
       return "w-8 h-8 flex items-center justify-center bg-transparent text-gray-500 border-none hover:text-gray-300 hover:bg-dark-200 disabled:hover:text-gray-500 disabled:hover:bg-transparent";
     case "ghost":

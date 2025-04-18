@@ -3,6 +3,7 @@ import TextInput from "@/components/TextInput.vue";
 import Welcome from "@/components/Welcome.vue";
 import ChatInterface from "@/components/ChatInterface.vue";
 import Container from "@/components/Container.vue";
+import NavBar from "@/components/NavBar.vue";
 import { useChat } from "@/composables/useChat";
 import { useRoute, useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
@@ -50,6 +51,7 @@ watch(
 </script>
 
 <template>
+  <NavBar />
   <Container>
     <div class="flex flex-col justify-between w-full h-full">
       <Welcome v-if="messages.length === 0">

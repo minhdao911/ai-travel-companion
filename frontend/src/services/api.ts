@@ -1,4 +1,5 @@
 import type { Message } from "@/types";
+import { hash } from "@/utils/common";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -70,6 +71,7 @@ export const streamChat = async (
   try {
     const response = await fetch(`${API_URL}/api/chat/stream`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
@@ -162,6 +164,7 @@ export const streamChat = async (
 export const getChatTitle = async (userInput: string): Promise<string> => {
   const response = await fetch(`${API_URL}/api/chat/summary`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -174,4 +177,35 @@ export const getChatTitle = async (userInput: string): Promise<string> => {
 
   const data = await response.json();
   return data.summary;
+};
+
+export const verifyAdmin = async (username: string, password: string): Promise<boolean> => {
+  const response = await fetch(`${API_URL}/api/verify-admin`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    credentials: "include",
+    body: `username=${username}&password=${hash(password)}`,
+  });
+
+  if (!response.ok) {
+    throw new Error("Unauthorized");
+  }
+
+  const data = await response.json();
+  return data.is_admin;
+};
+
+export const checkAdmin = async (): Promise<boolean> => {
+  const response = await fetch(`${API_URL}/api/check-admin`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to check admin status");
+  }
+
+  const data = await response.json();
+  return data.is_admin;
 };
