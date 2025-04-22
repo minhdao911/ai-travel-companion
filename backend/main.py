@@ -23,12 +23,16 @@ from ai.assistant import (
 
 load_dotenv()
 
+is_prod = os.getenv("ENVIRONMENT", "development") == "production"
+
 app = FastAPI(title="AI Travel Companion API")
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=(
+        ["http://localhost:5173"] if not is_prod else [os.getenv("APP_URL")]
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,14 +66,11 @@ def verify_token(request: Request):
         if not access_token:
             raise HTTPException(status_code=401, detail="Missing authentication token")
 
-        payload = jwt.decode(
+        jwt.decode(
             access_token,
             os.getenv("JWT_SECRET_KEY"),
             algorithms=[os.getenv("JWT_ALGORITHM")],
         )
-        username: str = payload.get("sub")
-        if username != os.getenv("ADMIN_USERNAME"):
-            raise HTTPException(status_code=401, detail="Invalid credentials")
         return True
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
@@ -158,18 +159,19 @@ async def verify_admin(
             data={"sub": "admin"}, expires_delta=access_token_expires
         )
 
-        is_prod = os.getenv("ENVIRONMENT", "development") == "production"
-
-        # Set the cookie with appropriate settings
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            secure=is_prod,
-            samesite="Lax",
-            max_age=int(access_token_expires.total_seconds()),
-            path="/",
-        )
+        try:
+            # Set the cookie with appropriate settings
+            response.set_cookie(
+                key="access_token",
+                value=access_token,
+                httponly=True,
+                secure=is_prod,
+                samesite="None" if is_prod else "Lax",
+                max_age=int(access_token_expires.total_seconds()),
+                path="/",
+            )
+        except Exception as e:
+            print(f"Error setting cookie: {e}")
 
         return {"status": "ok", "is_admin": True}
     else:
