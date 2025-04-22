@@ -3,14 +3,15 @@ import ChatView from "../views/ChatView.vue";
 import NotFound from "../views/NotFound.vue";
 import LoginView from "../views/LoginView.vue";
 import useAuthStore from "../stores/auth";
+import LoadingView from "../views/LoadingView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/",
-      name: "home",
-      redirect: "/chat/new",
+      name: "loading",
+      component: LoadingView,
     },
     {
       path: "/chat",
@@ -39,8 +40,8 @@ const router = createRouter({
 router.beforeEach(async (to, _, next) => {
   const authStore = useAuthStore();
 
-  if (!authStore.adminChecked) {
-    await authStore.checkAdmin();
+  if (!authStore.adminChecked && to.name !== "loading") {
+    next({ name: "loading" });
   }
 
   if (to.meta.requiresAuth && !authStore.isAdmin) {

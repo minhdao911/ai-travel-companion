@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { checkAdmin, verifyAdmin } from "@/services/api";
 
-const useAuthStore = defineStore("auth", {
+const useAuthStore = defineStore("auth_store", {
   state: () => ({
     isAdmin: false,
     adminChecked: false,
