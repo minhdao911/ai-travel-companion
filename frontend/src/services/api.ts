@@ -1,4 +1,4 @@
-import type { Message } from "@/types";
+import type { AIModel, Message } from "@/types";
 import { hash } from "@/utils/common";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -56,6 +56,7 @@ interface StreamCallbacks {
   onToolEnd?: (name: string) => void;
   onError?: (message: string) => void;
   onEnd?: () => void;
+  model?: AIModel;
 }
 
 /**
@@ -63,9 +64,7 @@ interface StreamCallbacks {
  */
 export const streamChat = async (
   // Use the updated Message type, selecting necessary fields + optional tool fields
-  messages: Array<
-    Pick<Message, "role" | "content"> & Partial<Pick<Message, "tool_calls" | "tool_call_id">>
-  >,
+  messages: Array<Pick<Message, "role" | "content">>,
   callbacks: StreamCallbacks
 ): Promise<void> => {
   try {
@@ -76,7 +75,10 @@ export const streamChat = async (
         "Content-Type": "application/json",
         Accept: "text/event-stream",
       },
-      body: JSON.stringify({ messages }), // Send the message history
+      body: JSON.stringify({
+        messages,
+        model: callbacks.model,
+      }),
     });
 
     if (!response.ok) {

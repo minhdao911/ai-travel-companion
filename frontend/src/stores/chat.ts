@@ -50,7 +50,13 @@ export const createChatStore = (id: string) => {
         if (chat) {
           const index = chat.messages.findIndex((m) => m.id === messageId);
           if (index !== -1) {
-            chat.messages[index] = { ...chat.messages[index], ...data };
+            const chatMessage = chat.messages[index];
+            chat.messages[index] = {
+              ...chatMessage,
+              ...data,
+              status:
+                data.status === "success" && chatMessage.status === "error" ? "error" : data.status,
+            };
           }
         }
       },

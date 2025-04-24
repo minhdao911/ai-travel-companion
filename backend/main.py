@@ -13,13 +13,11 @@ from starlette.responses import StreamingResponse
 from langchain_core.messages import (
     HumanMessage,
     AIMessage,
-    ToolMessage,
     BaseMessage,
 )
 from ai.summary import get_summary
-from ai.assistant import (
-    graph as assistant_graph,
-)
+from ai.assistant import AssistantGraph
+from ai.models import AIModel, AIModelProvider
 
 load_dotenv()
 
@@ -39,8 +37,14 @@ app.add_middleware(
 )
 
 
+class Model(BaseModel):
+    id: str
+    provider: AIModelProvider
+
+
 class StreamRequest(BaseModel):
     messages: List[Dict[str, Any]]
+    model: Model
 
 
 class SummaryRequest(BaseModel):
@@ -76,67 +80,48 @@ def verify_token(request: Request):
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 
-def _convert_message_dicts_to_objects(
+def _convert_messages_openai(
     messages: List[Dict[str, Any]],
 ) -> List[BaseMessage]:
     """Converts message dictionaries from the request to LangChain message objects."""
     output_messages = []
-    # print(f"Converting message dicts: {messages}")
     for msg in messages:
         role = msg.get("role")
         content = msg.get("content")
-        tool_calls = msg.get("tool_calls")
-        tool_call_id = msg.get("tool_call_id")
 
-        if not content and not tool_calls:
-            if role == "assistant":
-                pass
-            else:
-                print(f"Skipping message with empty content and no tool calls: {msg}")
-                continue
+        if not content:
+            continue
 
         if role == "user":
             output_messages.append(HumanMessage(content=content or ""))
         elif role == "assistant":
-            if tool_calls and isinstance(tool_calls, list):
-                valid_tool_calls = []
-                for tc in tool_calls:
-                    if (
-                        isinstance(tc, dict)
-                        and tc.get("id")
-                        and tc.get("name")
-                        and isinstance(tc.get("args"), dict)
-                    ):
-                        valid_tool_calls.append(
-                            {
-                                "id": tc["id"],
-                                "name": tc["name"],
-                                "args": tc["args"],
-                                "type": "tool_call",
-                            }
-                        )
-                    else:
-                        print(f"Warning: Invalid tool_call format skipped: {tc}")
-                if valid_tool_calls:
-                    output_messages.append(
-                        AIMessage(content=content or "", tool_calls=valid_tool_calls)
-                    )
-                else:
-                    output_messages.append(AIMessage(content=content or ""))
+            output_messages.append(AIMessage(content=content or ""))
 
-            else:
-                output_messages.append(AIMessage(content=content or ""))
-        elif role == "tool":
-            if tool_call_id:
-                output_messages.append(
-                    ToolMessage(content=content or "", tool_call_id=tool_call_id)
-                )
-            else:
-                print(f"Warning: Tool message missing tool_call_id: {msg}")
-        else:
-            print(f"Warning: Unrecognized message role '{role}' skipped: {msg}")
+    print(f"Converted OpenAI messages: {output_messages}")
+    return output_messages
 
-    print(f"Converted LangChain messages: {output_messages}")
+
+def _convert_messages_google(
+    messages: List[Dict[str, Any]],
+) -> List[BaseMessage]:
+    """Converts message dictionaries from the request to LangChain message objects."""
+    output_messages = []
+    for msg in messages:
+        role = msg.get("role")
+        content = msg.get("content")
+
+        if not content:
+            continue
+
+        if role == "user":
+            output_messages.append(
+                {"role": "user", "content": [{"type": "text", "text": content}]}
+            )
+        elif role == "assistant":
+            output_messages.append(
+                {"role": "assistant", "content": [{"type": "text", "text": content}]}
+            )
+    print(f"Converted Gemini messages: {output_messages}")
     return output_messages
 
 
@@ -206,7 +191,11 @@ async def stream_chat(request: Request, stream_request: StreamRequest):
 
     try:
         graph_input = {
-            "messages": _convert_message_dicts_to_objects(stream_request.messages)
+            "messages": (
+                _convert_messages_openai(stream_request.messages)
+                if stream_request.model.provider == AIModelProvider.OPENAI
+                else _convert_messages_google(stream_request.messages)
+            )
         }
 
         if not graph_input["messages"]:
@@ -220,7 +209,11 @@ async def stream_chat(request: Request, stream_request: StreamRequest):
 
         async def event_stream():
             try:
-                async for event in assistant_graph.astream_events(
+                llm = AIModel(
+                    stream_request.model.provider, stream_request.model.id
+                ).get_llm()
+                graph = AssistantGraph(llm).get_graph()
+                async for event in graph.astream_events(
                     graph_input,
                     config={"configurable": {"thread_id": thread_id}},
                     version="v1",

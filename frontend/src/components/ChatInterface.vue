@@ -7,6 +7,7 @@ import { ref, watch, nextTick } from "vue";
 const props = defineProps<{
   messages: Message[];
   isLoading: boolean;
+  onRegenerate: (messageId: string) => void;
 }>();
 
 const chatContainer = ref<HTMLElement | null>(null);
@@ -27,6 +28,10 @@ watch(
   },
   { deep: true }
 );
+
+const handleRegenerate = (messageId: string) => {
+  props.onRegenerate(messageId);
+};
 </script>
 
 <template>
@@ -36,7 +41,13 @@ watch(
       <ChatBubble v-if="message.role === 'user'" :content="message.content" />
 
       <!-- Use AIReponse for ai messages -->
-      <AIReponse v-else :message="message" :isChatLoading="props.isLoading" />
+      <AIReponse
+        v-else
+        :message="message"
+        :isChatLoading="props.isLoading"
+        :isLastMessage="message.id === props.messages[props.messages.length - 1].id"
+        @regenerate="handleRegenerate"
+      />
     </template>
   </div>
 </template>

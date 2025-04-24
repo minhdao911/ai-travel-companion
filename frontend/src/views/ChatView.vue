@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useChatStore } from "@/stores/chat";
 import { ref, watch } from "vue";
 import { getChatTitle } from "@/services/api";
+import { availableModels, type AIModel } from "@/types";
 
 const route = useRoute();
 const router = useRouter();
@@ -17,8 +18,9 @@ const router = useRouter();
 const chatStore = useChatStore();
 
 const chatId = ref<string>("");
+const selectedModel = ref<AIModel>(availableModels[1]);
 
-const { input, messages, isLoading, handleInputEnter } = useChat(chatId);
+const { input, messages, isLoading, handleInputEnter, stream } = useChat(chatId, selectedModel);
 
 watch(
   () => route.params.id as string,
@@ -48,6 +50,11 @@ watch(
   },
   { immediate: true }
 );
+
+const handleRegenerate = async (messageId: string) => {
+  chatStore.updateMessage(chatId.value, messageId, { content: "", status: "loading" });
+  await stream(messages.value, messageId);
+};
 </script>
 
 <template>
@@ -62,13 +69,19 @@ watch(
         </p>
       </Welcome>
       <div v-else class="flex flex-col w-full h-full overflow-y-auto">
-        <ChatInterface :messages="messages" :isLoading="isLoading" />
+        <ChatInterface
+          :messages="messages"
+          :isLoading="isLoading"
+          :onRegenerate="handleRegenerate"
+        />
       </div>
       <TextInput
         placeholder="Ask me anything about travel"
         v-model="input"
         :onEnter="handleInputEnter"
         :disabled="isLoading"
+        :availableModels="availableModels"
+        v-model:selectedModel="selectedModel"
       />
     </div>
   </Container>

@@ -1,6 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
-from ai.models import llm
+from ai.models import AIModel, AIModelProvider
 
+llm = AIModel(AIModelProvider.OPENAI, "gpt-4.1-nano").get_llm()
 prompt = ChatPromptTemplate.from_messages(
     [
         (

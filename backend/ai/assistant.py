@@ -8,8 +8,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.tools import DuckDuckGoSearchRun
 from langgraph.prebuilt import tools_condition
 from langgraph.checkpoint.memory import MemorySaver
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
-from ai.models import llm
+from ai.models import AIModel, AIModelProvider
 from tools.flight_scraper import search_flights
 from tools.hotel_scraper import search_hotels
 from utils.tools import create_tool_node_with_fallback
@@ -51,6 +53,8 @@ primary_assistant_prompt = ChatPromptTemplate.from_messages(
             " Use the web search tool for general travel information. "
             " If there are some missing details required to search, ask the user for more information. "
             " When searching for hotels, you can make additional web search to find the best options or fill in missing details like amenities, location, etc. "
+            " Make sure to include both the outbound and inbound flights in the response."
+            " If you have enough information about the flights and hotels, don't use the search_flights and search_hotels tools again. "
             " If a search comes up empty, expand your search before giving up."
             "\n\nCurrent time: {time}.",
         ),
@@ -58,28 +62,38 @@ primary_assistant_prompt = ChatPromptTemplate.from_messages(
     ]
 ).partial(time=datetime.now)
 
-tools = [search_flights, search_hotels, DuckDuckGoSearchRun()]
-assistant_runnable = primary_assistant_prompt | llm.bind_tools(tools)
 
-builder = StateGraph(State)
+class AssistantGraph:
+    def __init__(self, llm: ChatOpenAI | ChatGoogleGenerativeAI):
+        self.llm = llm
 
-builder.add_node("assistant", Assistant(assistant_runnable))
-builder.add_node("tools", create_tool_node_with_fallback(tools))
+    def get_graph(self):
+        tools = [search_flights, search_hotels, DuckDuckGoSearchRun()]
+        assistant_runnable = primary_assistant_prompt | self.llm.bind_tools(tools)
 
-builder.add_edge(START, "assistant")
-builder.add_conditional_edges(
-    "assistant",
-    tools_condition,
-)
-builder.add_edge("tools", "assistant")
+        builder = StateGraph(State)
 
-# The checkpointer lets the graph persist its state
-# this is a complete memory for the entire graph.
-memory = MemorySaver()
-graph = builder.compile(checkpointer=memory)
+        builder.add_node("assistant", Assistant(assistant_runnable))
+        builder.add_node("tools", create_tool_node_with_fallback(tools))
 
-# Draw the graph
-# graph.get_graph().draw_mermaid_png(output_file_path="graph.png")
+        builder.add_edge(START, "assistant")
+        builder.add_conditional_edges(
+            "assistant",
+            tools_condition,
+        )
+        builder.add_edge("tools", "assistant")
+
+        # The checkpointer lets the graph persist its state
+        # this is a complete memory for the entire graph.
+        memory = MemorySaver()
+        graph = builder.compile(checkpointer=memory)
+
+        return graph
+
+    def draw_graph(self):
+        graph = self.get_graph()
+        graph.get_graph().draw_mermaid_png(output_file_path="graph.png")
+
 
 # For testing the graph locally
 if __name__ == "__main__":
@@ -98,6 +112,9 @@ if __name__ == "__main__":
                 break
 
             input_message = HumanMessage(content=user_input)
+
+            llm = AIModel(AIModelProvider.OPENAI, "gpt-4.1-mini").get_llm()
+            graph = AssistantGraph(llm).get_graph()
 
             print("Assistant: ", end="", flush=True)
             async for event in graph.astream_events(
