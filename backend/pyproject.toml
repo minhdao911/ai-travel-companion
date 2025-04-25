@@ -1,28 +1,28 @@
-[project]
+[tool.poetry]
 name = "ai-travel-companion"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "Minh Dao",email = "daominh91197@gmail.com"}
-]
+authors = ["Minh Dao <daominh91197@gmail.com>"]
 readme = "README.md"
-requires-python = ">=3.13,<4.0"
-dependencies = [
-    "fastapi (>=0.115.12,<0.116.0)",
-    "pydantic (>=2.11.3,<3.0.0)",
-    "langchain (>=0.3.24,<0.4.0)",
-    "langchain-openai (>=0.3.14,<0.4.0)",
-    "langgraph (>=0.3.34,<0.4.0)",
-    "langchain-google-genai (>=2.1.3,<3.0.0)",
-    "playwright (>=1.51.0,<2.0.0)",
-    "fast-flights (>=2.2,<3.0)",
-    "selectolax (>=0.3.28,<0.4.0)",
-    "uvicorn (>=0.34.2,<0.35.0)",
-    "dotenv (>=0.9.9,<0.10.0)",
-    "langchain-community (>=0.3.22,<0.4.0)",
-    "duckduckgo-search (>=8.0.1,<9.0.0)"
-]
+packages = [] # Add this if your project isn't structured as a standard package
 
+[tool.poetry.dependencies]
+python = ">=3.11.11,<4.0"
+fastapi = ">=0.115.12,<0.116.0"
+pydantic = ">=2.11.3,<3.0.0"
+langchain = ">=0.3.24,<0.4.0"
+langchain-openai = ">=0.3.14,<0.4.0"
+langgraph = ">=0.3.34,<0.4.0"
+langchain-google-genai = ">=2.1.3,<3.0.0"
+playwright = ">=1.51.0,<2.0.0"
+fast-flights = ">=2.2,<3.0"
+selectolax = ">=0.3.28,<0.4.0"
+uvicorn = ">=0.34.2,<0.35.0"
+langchain-community = ">=0.3.22,<0.4.0"
+duckduckgo-search = ">=8.0.1,<9.0.0"
+python-jose = ">=3.4.0,<4.0.0"
+python-multipart = ">=0.0.20,<0.0.21"
+python-dotenv = "^1.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
