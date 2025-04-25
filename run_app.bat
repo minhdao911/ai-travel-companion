@@ -3,7 +3,7 @@ echo Starting AI Travel Companion (Full Stack)...
 
 :: Start the backend server in a new window
 echo Starting backend server...
-start "AI Travel Companion Backend" cmd /c "cd backend && (if not exist venv (echo Creating virtual environment... && python -m venv venv)) && echo Activating virtual environment... && call venv\Scripts\activate && echo Installing dependencies... && pip install -r requirements.txt && echo Starting FastAPI server... && uvicorn main:app --reload"
+start "AI Travel Companion Backend" cmd /c "cd backend && echo Installing dependencies via Poetry... && call poetry install --no-root && echo Starting FastAPI server via Poetry... && call poetry run uvicorn main:app --reload"
 
 :: Give the backend a moment to start
 timeout /t 3 /nobreak > nul

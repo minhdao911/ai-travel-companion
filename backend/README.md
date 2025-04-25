@@ -4,6 +4,8 @@ This is the FastAPI backend for the AI Travel Companion application.
 
 ### Setup
 
+Ensure you have [Poetry](https://python-poetry.org/docs/#installation) installed.
+
 Add environment variables:
 
 ```bash
@@ -35,29 +37,27 @@ run_backend.bat
 
 These scripts automate the following steps:
 
-1. Creating and activating a Python virtual environment (`venv`).
-2. Installing dependencies from `requirements.txt`.
-3. Starting the FastAPI server using `uvicorn main:app --reload`.
+1. Installing dependencies using `poetry install`.
+2. Starting the FastAPI server using `poetry run uvicorn main:app --reload`.
 
-Or follow these steps:
+Or follow these steps manually:
 
-1. Create and activate a virtual environment (recommended):
+1. Navigate to the backend directory:
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+cd backend
 ```
 
 2. Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+poetry install
 ```
 
 3. Start the development server:
 
 ```bash
-uvicorn main:app --reload
+poetry run uvicorn main:app --reload
 ```
 
 The server will start at http://localhost:8000.

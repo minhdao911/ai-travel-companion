@@ -1,20 +1,17 @@
 @echo off
-setlocal
+echo Starting AI Travel Companion Backend Debug Mode...
 
-:: Change to the script directory
-cd /d "%~dp0"
+:: Ensure Poetry is installed and in PATH
 
-:: Check if the virtual environment exists
-if not exist venv (
-    echo Virtual environment not found. Creating one...
-    python -m venv venv
-    call venv\Scripts\activate.bat
-    pip install -r requirements.txt
-) else (
-    call venv\Scripts\activate.bat
-)
+:: Install dependencies using Poetry if needed
+:: (Poetry handles this implicitly, but running install ensures environment is up-to-date)
+echo Ensuring dependencies are installed via Poetry...
+call poetry install --no-root
 
-:: Run the test functions in debug mode
-python debug.py debug
+:: Run the debug script using Poetry
+echo Running debug script...
+call poetry run python debug.py
 
-endlocal 
+:: Exit message
+echo Debug mode finished. Press any key to exit.
+pause > nul 

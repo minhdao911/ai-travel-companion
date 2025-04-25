@@ -3,18 +3,13 @@
 # Change to the script directory
 cd "$(dirname "$0")"
 
-# Check if the virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "Virtual environment not found. Creating one..."
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-else
-    source venv/bin/activate
-fi
+# Ensure Poetry is installed and in PATH
 
-# Make the debug.py file executable
-chmod +x debug.py
+# Install dependencies using Poetry if needed
+# (Poetry handles this implicitly, but running install ensures environment is up-to-date)
+echo "Ensuring dependencies are installed via Poetry..."
+poetry install --no-root
 
-# Run the test functions in debug mode
-python debug.py debug
+# Run the debug script using Poetry
+echo "Running debug script..."
+poetry run python debug.py

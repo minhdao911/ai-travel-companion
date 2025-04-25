@@ -1,22 +1,15 @@
 #!/bin/bash
 
-# Check if virtual environment exists, if not create it
-if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv venv
-fi
+# Poetry automatically handles virtual environments
+# No need to create or activate manually
 
-# Activate virtual environment
-echo "Activating virtual environment..."
-source venv/bin/activate
+# Install dependencies using Poetry
+echo "Installing dependencies via Poetry..."
+poetry install --no-root
 
-# Install dependencies if needed
-echo "Installing dependencies..."
-pip install -r requirements.txt
-
-# Run the FastAPI server
-echo "Starting FastAPI server..."
-uvicorn main:app --reload
+# Run the FastAPI server using Poetry
+echo "Starting FastAPI server via Poetry..."
+poetry run uvicorn main:app --reload
 
 # This line will only run if the server stops
 echo "Server stopped"
